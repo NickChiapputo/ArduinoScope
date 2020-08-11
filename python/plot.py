@@ -10,7 +10,6 @@ import sys
 
 # Global variables.
 paused = False 			# Flag for pausing the data output. Changes on pause button press.
-fig = 0
 
 '''
 	Main oscilloscope routine. Called at program execution.
@@ -20,24 +19,47 @@ fig = 0
 	return 				None
 '''
 def oscilloscope():
-	signal.signal( signal.SIGINT, signal_handler )					# Create handler for SIGINT interrupt signal.
+	signal.signal( signal.SIGINT, signal_handler )						# Create handler for SIGINT interrupt signal.
 
 
 	# Create sample frequency and rate.
-	sampleFrequency = 100 											# Sampling frequency in Hz (samples per second).
-	sampleRate = 1.0 / sampleFrequency								# Create rate in seconds by inverting frequency.
+	sampleFrequency = 50 												# Sampling frequency in Hz (samples per second).
+	sampleRate = 1.0 / sampleFrequency									# Create rate in seconds by inverting frequency.
 
 
-	dataHistoryLength = 500											# Create constant number of samples to store in history. Frame width in seconds can be calculated as ( dataHistoryLength / sampleFrequency ).
-	data = np.zeros( dataHistoryLength )							# Create array to hold sample history.
-	timeset = range( 1, dataHistoryLength + 1 )						# Create sample indexes.
+	# Arduino Parameters
+	arduinoSampleFrequency = 1000
+	arduinoSampleRate = 1.0 / arduinoSampleFrequency
+	arduinoChannels = 2
+
+
+	dataHistoryTimeLength = 5 											# Length of time data is stored in seconds.
+	dataHistoryLength = dataHistoryTimeLength * arduinoSampleFrequency	# Create constant number of samples to store in history. Frame width in seconds can be calculated as ( dataHistoryLength / sampleFrequency ).
+	data = np.zeros( ( arduinoChannels, dataHistoryLength ) )			# Create array to hold sample history for each channel.
+	
+	maxTime = dataHistoryLength * arduinoSampleRate						# Get the maximum time value for the X-axis.
+	timeStep = arduinoSampleRate										# Get the time step size for input samples.
+	timeset = np.arange( 0, maxTime, timeStep )							# Create X-axis ticks/labels.
+
+
+	# Create plot parameters
+	xlim = [ 0, dataHistoryLength * sampleRate ]
+	ylim = [ 0, 5.1 ]
+	xlabel = "Time (s)"
+	ylabel = "Voltage (V)"
+	title = "Oscilloscope"
 
 
 	# Create the figure and plot the initial data (all zero line).
-	fig, ax = initPlot( xlim = [ 0, dataHistoryLength ], ylim = [ 0, 5.1 ], xlabel = "Sample", ylabel = "Voltage (V)", title = "Oscilloscope" )
-	line, = ax.plot( timeset, data )
-	ax.margins( x = 0, y = 0 )
+	fig, ax = initPlot( xlim = xlim, ylim = ylim, xlabel = xlabel, ylabel = ylabel, title = title )
 
+	lines = []
+	for i in range( 0, arduinoChannels ):
+		line, = ax.plot( timeset, data[ i ] )
+		lines.append( line )
+	ax.margins( x = 0, y = 0 )
+	ax.set_ylim( xlim )					# Set the Y-axis limits.
+	ax.set_ylim( ylim )					# Set the X-axis limits.
 
 	# Create pause button.
 	axPause = plt.axes( [ 0.75, 0.05, 0.1, 0.075 ] )
@@ -61,6 +83,7 @@ def oscilloscope():
 
 
 	lastCheck = time.time()											# Set the initial check time.
+	starttime = lastCheck
 
 	index = 0														# Counter to keep track of frames if we want that information.
 
@@ -68,28 +91,40 @@ def oscilloscope():
 	# Infinite loop until the SIGINT interrupt signal is received.
 	while True:
 		# Only read in the data at the sample rate. This prevents slowdown of the display.
-		# if ( ( time.time() - lastCheck ) > sampleRate ) and cereal.in_waiting:
 		if cereal.in_waiting:
-			index = index + 1										# Increment frame count.
 			inputData = ( cereal.read_until() )[ : -2 ]				# Read in the data and remove the carriage return and newline bytes.
-			# lastCheck = time.time()									# Update the last sample time.
 
 
 			# Try to execute this block.
 			# There are some scenarios where the data is malformed and can't be parsed.
 			# This try-except block catches those scenarios.
 			try:
-				inputData = float( inputData.decode( "ASCII" ) )	# Take the bytes input data, decode into ASCII format and convert to a floating-point value.
+				inputData = inputData.decode( "ASCII" )	# Take the bytes input data, decode into ASCII format and convert to a floating-point value.
+				inputData = inputData.split( " " )
+
+				# Convert each data point into a floating-point value.
+				# Do this before updating the lists in case one of them is faulty.
+				# This keeps the data lined up.
+				for i in range( 0, arduinoChannels ):
+					inputData[ i ] = float( inputData[ i ] )
 
 
 				# Print out the current reading.
 				print( "\r\033[K>> '{}' - {}".format( inputData, type( inputData ) ), end='' )
 
 
-				# Slide all the data back one slot and then 
-				# add the new data point to the most recent slot.
-				data = rotateLeftNPositions( data, 1 )				# Rotate the data to the left by one position
-				data[ dataHistoryLength - 1 ] = inputData			# Add the new data point at the right-most data location.
+				# Update each channel's data.
+				for i in range( 0, arduinoChannels ):
+					# Slide all the data back one slot and then 
+					# add the new data point to the most recent slot.
+					data[ i ] = rotateLeftNPositions( data[ i ], 1 )		# Rotate the data to the left by one position
+					data[ i ][ dataHistoryLength - 1 ] = inputData[ i ]		# Add the new data point at the right-most data location.
+
+
+				# timeset = rotateLeftNPositions( timeset, 1 )
+				# timeset[ dataHistoryLength - 1 ] = timeset[ dataHistoryLength - 2 ] + ( inputData[ 1 ] / 1000.0 )
+
+				# print( "Timeset: {}\nData: {}".format( timeset, data ) )
 
 
 				# This is more of a circular buffer. It probably
@@ -106,16 +141,19 @@ def oscilloscope():
 				# print( data )
 
 
-				# If the output is not paused, update the display.
-				if ( ( time.time() - lastCheck ) > sampleRate ):
-					updateGraph( fig, line, data, paused )					# Update the graph with the new data.
+				# Update the graph (when not paused) with the new data and X-axis labels.
+				# Update at a frame rate of sampleRate frames per second.
+				if ( time.time() - lastCheck ) > sampleRate:
+					index = index + 1											# Increment frame count.
+					lastCheck = time.time()										# Update the last frame update time.
+					updateGraph( fig, lines, data, arduinoChannels, paused )	# Update the plot.
 
 			except Exception as e:
 				# Print out the error text and the value of the input data
 				print( "Error: '{}'. {}\r".format( inputData, str( e ) ), end='\n' )
 
 			# cereal.reset_input_buffer()								# Flush
-
+	# print( "Frames in 20 seconds: {}.".format( index ) )
 
 '''
 	Initialize the oscilloscope view. By default, it shows 0 V to 5 V and 100 samples.
@@ -145,8 +183,8 @@ def initPlot( xlim = [ 0, 100 ], ylim = [ 0, 5.1 ], xlabel = "Sample", ylabel = 
 
 	plt.margins( x = 0, y = 0 )			# Remove margins between axes and plot area. Makes it look better.
 
-	ax.xaxis.set_major_locator( MultipleLocator( 50 ) )
-	ax.yaxis.set_major_locator( MultipleLocator( 0.5 ) )
+	# ax.xaxis.set_major_locator( MultipleLocator( 50 ) )
+	# ax.yaxis.set_major_locator( MultipleLocator( 0.5 ) )
 
 	# ax.xaxis.set_minor_locator( MultipleLocator( 10 ) )
 	# ax.yaxis.set_minor_locator( MultipleLocator( 0.1 ) )
@@ -203,14 +241,16 @@ def rotateLeftNPositions( list, n ):
 	@param 	fig 		The figure object that contains the plot.
 	@param 	graph 		The Line2D object that contains the previous data.
 	@param 	data 		The updated Y-axis data.
+	@param 	paused 		Boolean flag. When true, figure is not updated.
 
 	return 				None
 '''
-def updateGraph( fig, graph, data, paused ):
+def updateGraph( fig, graphs, data, channels, paused ):
 	if not paused:
-		graph.set_ydata( data )		# Set the new Y-axis data.
-	fig.canvas.flush_events()	# Flush the event pool and push the new data out.
-	plt.draw()					# Update (re-draw) the figure.
+		for i in range( 0, channels ):
+			graphs[ i ].set_ydata( data[ i ] )	# Set the new Y-axis data.
+	fig.canvas.flush_events()					# Flush the event pool and push the new data out.
+	# plt.draw()									# Update (re-draw) the figure.
 
 
 class PauseButtonProcessor():

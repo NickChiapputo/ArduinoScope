@@ -9,17 +9,25 @@ import sys
 
 
 # Global variables.
-paused = False 			# Flag for pausing the data output. Changes on pause button press.
+paused = False 						# Flag for pausing the data output. Changes on pause button press.
+updateDivisions = False 			# Flage for updating the division display on the scope. Set after a secs/div or volts/div button press.
 
 
 # Oscilloscope parameters. Need to be global so the input objects can adjust them.
-numDivisions = 5		# Number of divisions per quadrant. Total vertical/horizontal divisions is twice this number.
+numDivisions = 5					# Number of divisions per quadrant. Total vertical/horizontal divisions is twice this number.
 
-timeStep = 2 			# Seconds per division (sec/div).
-timeOffset = 10			# Movement left/right on X-axis.
+# Create lists of valid options for secs/div and volts/div.
+timeStepOptions = [ 0.01, 0.05, 0.1, 0.5, 1, 2, 5 ]		# Seconds
+voltStepOptions = [ 0.01, 0.05, 0.1, 0.5, 1, 2, 5 ]		# Volts
 
-voltStep = 0.5 			# Volts per division (volts/div).
-voltOffset = 2.5		# Movement up/down on X-axis
+timeStepIndex = 5
+timeStep = timeStepOptions[ timeStepIndex ] 	# Seconds per division (sec/div).
+timeOffset = 10									# Movement left/right on X-axis.
+
+voltStepIndex = 3
+voltStep = timeStepOptions[ voltStepIndex ]  	# Volts per division (volts/div).
+voltOffset = 0									# Movement up/down on X-axis
+
 
 
 '''
@@ -46,7 +54,7 @@ def oscilloscope():
 
 	# Initialize data and timeset buffers.
 	numTimeDivs = 2 * numDivisions * timeStep							# Calculate the number of time divisions displayed on the scope.
-	dataHistoryLength = numTimeDivs * arduinoSampleFrequency			# Create constant number of samples to store in history. Store arduinoSampleFrequency samples per time division. This keeps a consistent data density.
+	dataHistoryLength = int( numTimeDivs * arduinoSampleFrequency )		# Create constant number of samples to store in history. Store arduinoSampleFrequency samples per time division. This keeps a consistent data density.
 	data = np.zeros( ( arduinoChannels, dataHistoryLength ) )			# Create array to hold sample history for each channel.
 	
 	timeRange = dataHistoryLength * arduinoSampleRate					# Calculate the amount of time data will be held for.
@@ -74,12 +82,47 @@ def oscilloscope():
 		lines.append( line )
 	ax.margins( x = 0, y = 0 )
 
+
+	# Add the oscilloscope input buttons (volts/div and secs/div changes and volt/secs offset)
+	# Create labels for button sets.
+	fig.text( 0.90, 0.875, "secs/div", 			horizontalalignment = "center", verticalalignment = "center" )
+	fig.text( 0.90, 0.675, "volt/div", 			horizontalalignment = "center", verticalalignment = "center" )
+	fig.text( 0.90, 0.475, "Time Offset", 		horizontalalignment = "center", verticalalignment = "center" )
+	fig.text( 0.90, 0.275, "Voltage Offset", 	horizontalalignment = "center", verticalalignment = "center" )
+
 	# Create pause button.
 	axPause = plt.axes( [ 0.75, 0.05, 0.1, 0.075 ] )
-	bPause = PauseButtonProcessor( axPause, "▌▌" )
+	bPause = ButtonProcessor( axPause, "▌▌", "pause" )
 
-	fig.subplots_adjust( bottom = 0.2 )
+	# Create secs/div increase/decrease step buttons.
+	axTimeStepIncrease = plt.axes( [ 0.83, 0.80, 0.05, 0.04 ] )
+	axTimeStepDecrease = plt.axes( [ 0.92, 0.80, 0.05, 0.04 ] )
 
+	bTimeStepIncrease = ButtonProcessor( axTimeStepIncrease, "+", "timeStepUp"   )
+	bTimeStepDecrease = ButtonProcessor( axTimeStepDecrease, "-", "timeStepDown" )
+
+	# Create volt/div increase/decrease step buttons.
+	axVoltStepIncrease = plt.axes( [ 0.83, 0.60, 0.05, 0.04 ] )
+	axVoltStepDecrease = plt.axes( [ 0.92, 0.60, 0.05, 0.04 ] )
+
+	bVoltStepIncrease = ButtonProcessor( axVoltStepIncrease, "+", "voltStepUp"   )
+	bVoltStepDecrease = ButtonProcessor( axVoltStepDecrease, "-", "voltStepDown" )
+
+	# Create secs/div increase/decrease offset buttons.
+	axTimeIncrease = plt.axes( [ 0.83, 0.40, 0.05, 0.04 ] )
+	axTimeDecrease = plt.axes( [ 0.92, 0.40, 0.05, 0.04 ] )
+
+	bTimeIncrease = ButtonProcessor( axTimeIncrease, "+", "timeUp"   )
+	bTimeDecrease = ButtonProcessor( axTimeDecrease, "-", "timeDown" )
+
+	# Create volt/div increase/decrease offset buttons.
+	axVoltIncrease = plt.axes( [ 0.83, 0.20, 0.05, 0.04 ] )
+	axVoltDecrease = plt.axes( [ 0.92, 0.20, 0.05, 0.04 ] )
+
+	bVoltIncrease = ButtonProcessor( axVoltIncrease, "+", "voltUp"   )
+	bVoltDecrease = ButtonProcessor( axVoltDecrease, "-", "voltDown" )
+
+	fig.subplots_adjust( bottom = 0.2, right = 0.75 )
 
 	# Reset the current axis.
 	plt.sca( ax )
@@ -121,7 +164,7 @@ def oscilloscope():
 
 
 				# Print out the current reading.
-				print( "\r\033[K>> '{}' - {}".format( inputData, type( inputData ) ), end='' )
+				# print( "\r\033[K>> '{}' - {}".format( inputData, type( inputData ) ), end='' )
 
 
 				# Update each channel's data.
@@ -158,6 +201,40 @@ def oscilloscope():
 					index = index + 1											# Increment frame count.
 					lastCheck = time.time()										# Update the last frame update time.
 					updateGraph( fig, lines, data, arduinoChannels, paused )	# Update the plot.
+
+
+				# Update the plot divisions if the update flag is set after a button press.
+				global updateDivisions
+				if updateDivisions:
+					updateDivisions = False
+
+
+					# Initialize data and timeset buffers.
+					numTimeDivs = 2 * numDivisions * timeStep							# Calculate the number of time divisions displayed on the scope.
+					dataHistoryLength = int( numTimeDivs * arduinoSampleFrequency )		# Create constant number of samples to store in history. Store arduinoSampleFrequency samples per time division. This keeps a consistent data density.
+					print( "numTimeDivs: {}\ndataHistoryLength: {}".format( numTimeDivs, dataHistoryLength ) )
+					data = np.zeros( ( arduinoChannels, dataHistoryLength ) )			# Create array to hold sample history for each channel.
+					
+					timeRange = dataHistoryLength * arduinoSampleRate					# Calculate the amount of time data will be held for.
+					minTime = -( timeRange / 2 ) + timeOffset 							# Calculate the minimum time by taking the negative half of the range and offsetting it.
+					maxTime =  ( timeRange / 2 ) + timeOffset 							# Calculate the maximum time by taking the positive half of the range and offsetting it.
+					timeset = np.arange( minTime, maxTime, arduinoSampleRate )			# Create X-axis (time) data.
+
+					# Create plot parameters
+					xlim = [ -( numDivisions * timeStep ) + timeOffset, numDivisions * timeStep + timeOffset ]
+					ylim = [ -( numDivisions * voltStep ) + voltOffset, numDivisions * voltStep + voltOffset ]
+
+					ax.set_xlim( xlim )
+					ax.set_ylim( ylim )
+
+					ax.xaxis.set_major_locator( MultipleLocator( timeStep ) )
+					ax.yaxis.set_major_locator( MultipleLocator( voltStep ) )
+
+					for i in range( 0, arduinoChannels ):
+						lines[ i ].set_data( timeset, data[ i ] )
+
+					fig.canvas.flush_events()					# Flush the event pool and push the new data out.
+
 
 			except Exception as e:
 				# Print out the error text and the value of the input data
@@ -207,11 +284,55 @@ def initPlot( xlim = [ 0, 100 ], ylim = [ 0, 5.1 ], xlabel = "Sample", ylabel = 
 
 
 '''
+	Add the oscilloscope input buttons to the figure.
+	Adding secs/div and volt/div increase and decrease buttons.
+	Adding voltage and seconds offset buttons.
+	Adding labels for all four sets of buttons.
+
+	@param 	fig 		The figure object that contains the oscilloscope view.
+
+	return 				None
 '''
-def pauseCallback( event ):
-	global paused
-	paused = not paused
-	print( "Pause: {}".format( paused ) )
+def addOscilloscopeInputs( fig ):
+	# Create labels for button sets.
+	fig.text( 0.90, 0.825, "secs/div", 			horizontalalignment = "center", verticalalignment = "center" )
+	fig.text( 0.90, 0.625, "volt/div", 			horizontalalignment = "center", verticalalignment = "center" )
+	fig.text( 0.90, 0.425, "Time Offset", 		horizontalalignment = "center", verticalalignment = "center" )
+	fig.text( 0.90, 0.225, "Voltage Offset", 	horizontalalignment = "center", verticalalignment = "center" )
+
+	# Create pause button.
+	axPause = plt.axes( [ 0.75, 0.05, 0.1, 0.075 ] )
+	bPause = ButtonProcessor( axPause, "▌▌", "pause" )
+
+	# Create secs/div increase/decrease step buttons.
+	axTimeStepIncrease = plt.axes( [ 0.83, 0.75, 0.05, 0.04 ] )
+	axTimeStepDecrease = plt.axes( [ 0.92, 0.75, 0.05, 0.04 ] )
+
+	bTimeStepIncrease = ButtonProcessor( axTimeStepIncrease, "+", "timeStepUp"   )
+	bTimeStepDecrease = ButtonProcessor( axTimeStepDecrease, "-", "timeStepDown" )
+
+	# Create volt/div increase/decrease step buttons.
+	axVoltStepIncrease = plt.axes( [ 0.83, 0.55, 0.05, 0.04 ] )
+	axVoltStepDecrease = plt.axes( [ 0.92, 0.55, 0.05, 0.04 ] )
+
+	bVoltStepIncrease = ButtonProcessor( axVoltStepIncrease, "+", "voltStepUp"   )
+	bVoltStepDecrease = ButtonProcessor( axVoltStepDecrease, "-", "voltStepDown" )
+
+	# Create secs/div increase/decrease offset buttons.
+	axTimeIncrease = plt.axes( [ 0.83, 0.35, 0.05, 0.04 ] )
+	axTimeDecrease = plt.axes( [ 0.92, 0.35, 0.05, 0.04 ] )
+
+	bTimeIncrease = ButtonProcessor( axTimeIncrease, "+", "timeUp"   )
+	bTimeDecrease = ButtonProcessor( axTimeDecrease, "-", "timeDown" )
+
+	# Create volt/div increase/decrease offset buttons.
+	axVoltIncrease = plt.axes( [ 0.83, 0.15, 0.05, 0.04 ] )
+	axVoltDecrease = plt.axes( [ 0.92, 0.15, 0.05, 0.04 ] )
+
+	bVoltIncrease = ButtonProcessor( axVoltIncrease, "+", "voltUp"   )
+	bVoltDecrease = ButtonProcessor( axVoltDecrease, "-", "voltDown" )
+
+	fig.subplots_adjust( bottom = 0.2, right = 0.8 )
 
 
 '''
@@ -263,18 +384,199 @@ def updateGraph( fig, graphs, data, channels, paused ):
 	fig.canvas.flush_events()					# Flush the event pool and push the new data out.
 
 
-class PauseButtonProcessor():
-	def __init__( self, axes, label ):
-		self.button = Button( axes, label )
-		self.button.on_clicked( self.process )
+'''
+	Object representing the oscilloscope buttons.
+	By creating an object, the button is more easily able
+	to access its own attributes and it nicely encapsulates
+	its functionality.
+'''
+class ButtonProcessor():
+	'''
+		Initialization function for the button.
 
-	def process( self, event ):
+		@self 			The button object. This is not used as an argument when creating the object.
+		@axes 			The axes object where the button is located.
+		@label 			The text label on the button.
+		@btnType		String representing the type of button. Valid options are:
+							"pause"
+							"timeStepUp"
+							"timeStepDown"
+							"voltStepUp"
+							"voltStepDown"
+							"timeUp"
+							"timeDown"
+							"voltUp"
+							"voltDown"
+
+		return 			None
+	'''
+	def __init__( self, axes, label, btnType ):
+		self.button = Button( axes, label )
+
+		if btnType == "pause":
+			self.button.on_clicked( self.processPause )
+		elif btnType == "timeStepUp":
+			self.button.on_clicked( self.processTimeStepUp )
+		elif btnType == "timeStepDown":
+			self.button.on_clicked( self.processTimeStepDown )
+		elif btnType == "voltStepUp":
+			self.button.on_clicked( self.processVoltStepUp )
+		elif btnType == "voltStepDown":
+			self.button.on_clicked( self.processVoltStepDown )
+		elif btnType == "timeUp":
+			self.button.on_clicked( self.processTimeUp )
+		elif btnType == "timeDown":
+			self.button.on_clicked( self.processTimeDown )
+		elif btnType == "voltUp":
+			self.button.on_clicked( self.processVoltUp )
+		elif btnType == "voltDown":
+			self.button.on_clicked( self.processVoltDown )
+
+	'''
+		Click event handler for the pause button. Toggle the oscilloscope pause feature.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
+	'''
+	def processPause( self, event ):
 		global paused
 		paused = not paused
 
 		self.button.label.set_text( "►" if paused else "▌▌" )
 
 		print( "Pause: {}".format( paused ) )
+
+	'''
+		Click event handler for the time division step increase.
+	'''
+	def processTimeStepUp( self, event ):
+		global timeStepOptions
+		global timeStepIndex
+		global timeStep
+
+		timeStepIndex = ( len( timeStepOptions ) - 1 ) if ( ( timeStepIndex + 1 ) >= len( timeStepOptions ) ) else ( timeStepIndex + 1 )
+
+		timeStep = timeStepOptions[ timeStepIndex ]
+
+		print( "Increase Time Step: {}".format( timeStep ) )
+
+		global updateDivisions
+		updateDivisions = True
+
+	'''
+		Click event handler for the time division step decrease.
+	'''
+	def processTimeStepDown( self, event ):
+		global timeStepOptions
+		global timeStepIndex
+		global timeStep
+
+		timeStepIndex = 0 if ( ( timeStepIndex - 1 ) < 0 ) else ( timeStepIndex - 1 )
+		timeStep = timeStepOptions[ timeStepIndex ]
+
+		print( "Decrease Time Step: {}".format( timeStep ) )
+
+		global updateDivisions
+		updateDivisions = True
+
+	'''
+		Click event handler for the volt division step increase.
+	'''
+	def processVoltStepUp( self, event ):
+		global voltStepOptions
+		global voltStepIndex
+		global voltStep
+
+		voltStepIndex = ( len( voltStepOptions ) - 1 ) if ( ( voltStepIndex + 1 ) >= len( voltStepOptions ) ) else ( voltStepIndex + 1 )
+
+		voltStep = voltStepOptions[ voltStepIndex ]
+
+		print( "Increase Volt Step: {}".format( voltStep ) )
+
+		global updateDivisions
+		updateDivisions = True
+
+	'''
+		Click event handler for the volt division step decrease.
+	'''
+	def processVoltStepDown( self, event ):
+		global voltStepOptions
+		global voltStepIndex
+		global voltStep
+
+		voltStepIndex = 0 if ( ( voltStepIndex - 1 ) < 0 ) else ( voltStepIndex - 1 )
+		voltStep = voltStepOptions[ voltStepIndex ]
+
+		print( "Decrease Volt Step: {}".format( voltStep ) )
+
+		global updateDivisions
+		updateDivisions = True
+
+
+	'''
+		Click event handler for the time division offset increase.
+	'''
+	def processTimeUp( self, event ):
+		global timeStep
+		global timeOffset
+
+		timeOffset = timeOffset + timeStep
+
+		print( "Increase Time Offset: {}".format( timeOffset ) )
+
+		global updateDivisions
+		updateDivisions = True
+
+
+	'''
+		Click event handler for the time division offset decrease.
+	'''
+	def processTimeDown( self, event ):
+		global timeStep
+		global timeOffset
+
+		timeOffset = timeOffset - timeStep
+
+		print( "Decrease Time Offset: {}".format( timeOffset ) )
+
+		global updateDivisions
+		updateDivisions = True
+
+
+	'''
+		Click event handler for the volt division offset increase.
+	'''
+	def processVoltUp( self, event ):
+		global voltStep
+		global voltOffset
+
+		voltOffset = voltOffset + voltStep
+
+		print( "Increase Volt Offset: {}".format( voltOffset ) )
+
+		global updateDivisions
+		updateDivisions = True
+
+
+	'''
+		Click event handler for the volt division offset decrease.
+	'''
+	def processVoltDown( self, event ):
+		global voltStep
+		global voltOffset
+
+		voltOffset = voltOffset - voltStep
+
+		print( "Decrease Volt Offset: {}".format( voltOffset ) )
+
+		global updateDivisions
+		updateDivisions = True
+
+'''
+	Object representing 
+'''
 
 
 # Call main routine.

@@ -11,6 +11,17 @@ import sys
 # Global variables.
 paused = False 			# Flag for pausing the data output. Changes on pause button press.
 
+
+# Oscilloscope parameters. Need to be global so the input objects can adjust them.
+numDivisions = 5		# Number of divisions per quadrant. Total vertical/horizontal divisions is twice this number.
+
+timeStep = 2 			# Seconds per division (sec/div).
+timeOffset = 10			# Movement left/right on X-axis.
+
+voltStep = 0.5 			# Volts per division (volts/div).
+voltOffset = 2.5		# Movement up/down on X-axis
+
+
 '''
 	Main oscilloscope routine. Called at program execution.
 
@@ -23,7 +34,7 @@ def oscilloscope():
 
 
 	# Create sample frequency and rate.
-	sampleFrequency = 50 												# Sampling frequency in Hz (samples per second).
+	sampleFrequency = 15 												# Sampling frequency in Hz (samples per second).
 	sampleRate = 1.0 / sampleFrequency									# Create rate in seconds by inverting frequency.
 
 
@@ -33,18 +44,22 @@ def oscilloscope():
 	arduinoChannels = 2
 
 
-	dataHistoryTimeLength = 5 											# Length of time data is stored in seconds.
-	dataHistoryLength = dataHistoryTimeLength * arduinoSampleFrequency	# Create constant number of samples to store in history. Frame width in seconds can be calculated as ( dataHistoryLength / sampleFrequency ).
+	# Initialize data and timeset buffers.
+	numTimeDivs = 2 * numDivisions * timeStep							# Calculate the number of time divisions displayed on the scope.
+	dataHistoryLength = numTimeDivs * arduinoSampleFrequency			# Create constant number of samples to store in history. Store arduinoSampleFrequency samples per time division. This keeps a consistent data density.
 	data = np.zeros( ( arduinoChannels, dataHistoryLength ) )			# Create array to hold sample history for each channel.
 	
-	maxTime = dataHistoryLength * arduinoSampleRate						# Get the maximum time value for the X-axis.
-	timeStep = arduinoSampleRate										# Get the time step size for input samples.
-	timeset = np.arange( 0, maxTime, timeStep )							# Create X-axis ticks/labels.
+	timeRange = dataHistoryLength * arduinoSampleRate					# Calculate the amount of time data will be held for.
+	minTime = -( timeRange / 2 ) + timeOffset 							# Calculate the minimum time by taking the negative half of the range and offsetting it.
+	maxTime =  ( timeRange / 2 ) + timeOffset 							# Calculate the maximum time by taking the positive half of the range and offsetting it.
+	timeset = np.arange( minTime, maxTime, arduinoSampleRate )			# Create X-axis (time) data.
 
+
+	# Oscilloscope parameters
 
 	# Create plot parameters
-	xlim = [ 0, dataHistoryLength * sampleRate ]
-	ylim = [ 0, 5.1 ]
+	xlim = [ -( numDivisions * timeStep ) + timeOffset, numDivisions * timeStep + timeOffset ]
+	ylim = [ -( numDivisions * voltStep ) + voltOffset, numDivisions * voltStep + voltOffset ]
 	xlabel = "Time (s)"
 	ylabel = "Voltage (V)"
 	title = "Oscilloscope"
@@ -58,14 +73,10 @@ def oscilloscope():
 		line, = ax.plot( timeset, data[ i ] )
 		lines.append( line )
 	ax.margins( x = 0, y = 0 )
-	ax.set_ylim( xlim )					# Set the Y-axis limits.
-	ax.set_ylim( ylim )					# Set the X-axis limits.
 
 	# Create pause button.
 	axPause = plt.axes( [ 0.75, 0.05, 0.1, 0.075 ] )
 	bPause = PauseButtonProcessor( axPause, "▌▌" )
-	# bPause = Button( axPause, "Pause" )
-	# bPause.on_clicked( pauseCallback )
 
 	fig.subplots_adjust( bottom = 0.2 )
 
@@ -75,7 +86,7 @@ def oscilloscope():
 
 
 	# Serial communication parameters.
-	baudrate = 115200												# Set the baudrate. Make sure this matches the Arduino program.
+	baudrate = 250000												# Set the baudrate. Make sure this matches the Arduino program.
 	port = "/dev/ttyACM0"											# Set the port the Arduino is connected to. /dev/ttyACMx for Linux and COMx for Windows.
 
 
@@ -173,8 +184,13 @@ def initPlot( xlim = [ 0, 100 ], ylim = [ 0, 5.1 ], xlabel = "Sample", ylabel = 
 
 	ax = plt.subplot( 1, 1, 1 )			# Create a plot.
 
-	ax.set_ylim( xlim )					# Set the Y-axis limits.
+	ax.set_xlim( xlim )					# Set the Y-axis limits.
 	ax.set_ylim( ylim )					# Set the X-axis limits.
+
+	# Create tick steps based on
+	# secs/div and volts/div. 
+	ax.xaxis.set_major_locator( MultipleLocator( timeStep ) )
+	ax.yaxis.set_major_locator( MultipleLocator( voltStep ) )
 
 	plt.xlabel( xlabel )				# Set the Y-axis label.
 	plt.ylabel( ylabel )				# Set the X-axis label.
@@ -182,12 +198,6 @@ def initPlot( xlim = [ 0, 100 ], ylim = [ 0, 5.1 ], xlabel = "Sample", ylabel = 
 	plt.title( title )					# Set the plot title.
 
 	plt.margins( x = 0, y = 0 )			# Remove margins between axes and plot area. Makes it look better.
-
-	# ax.xaxis.set_major_locator( MultipleLocator( 50 ) )
-	# ax.yaxis.set_major_locator( MultipleLocator( 0.5 ) )
-
-	# ax.xaxis.set_minor_locator( MultipleLocator( 10 ) )
-	# ax.yaxis.set_minor_locator( MultipleLocator( 0.1 ) )
 
 	plt.grid( which = 'both', axis = 'both' )			# Display gridlines.
 
@@ -240,7 +250,8 @@ def rotateLeftNPositions( list, n ):
 
 	@param 	fig 		The figure object that contains the plot.
 	@param 	graph 		The Line2D object that contains the previous data.
-	@param 	data 		The updated Y-axis data.
+	@param 	data 		2-Dimensional array containing the updated Y-axis data. Each row is a different channel.
+	@param 	channels 	Number of channels the plot contains.
 	@param 	paused 		Boolean flag. When true, figure is not updated.
 
 	return 				None
@@ -250,7 +261,6 @@ def updateGraph( fig, graphs, data, channels, paused ):
 		for i in range( 0, channels ):
 			graphs[ i ].set_ydata( data[ i ] )	# Set the new Y-axis data.
 	fig.canvas.flush_events()					# Flush the event pool and push the new data out.
-	# plt.draw()									# Update (re-draw) the figure.
 
 
 class PauseButtonProcessor():

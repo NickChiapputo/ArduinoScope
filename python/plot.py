@@ -33,23 +33,24 @@ voltOffset = 0									# Movement up/down on X-axis
 '''
 	Main oscilloscope routine. Called at program execution.
 
-	@param 				None
+	@param baud 					Baud rate for serial communication with Arduino.
+	@param port 					The serial port the Arduino is communicating on.
+	@param refreshFrequency 		The desired refresh rate in Hz for the oscilloscope view.
+	@param arduinoChannels			Number of channels configured on the Arduino.
+	@param arduinoSampleFrequency	Frequency in Hz the Arduino is sampling from its channels.
 
-	return 				None
+	return 							None
 '''
-def oscilloscope():
+def oscilloscope( baud = 250000, port = "/dev/ttyACM0", refreshFrequency = 15, arduinoChannels = 2, arduinoSampleFrequency = 1000 ):
 	signal.signal( signal.SIGINT, signal_handler )						# Create handler for SIGINT interrupt signal.
 
 
 	# Create sample frequency and rate.
-	sampleFrequency = 15 												# Sampling frequency in Hz (samples per second).
-	sampleRate = 1.0 / sampleFrequency									# Create rate in seconds by inverting frequency.
+	refreshRate = 1.0 / refreshFrequency								# Create rate in seconds by inverting frequency.
 
 
-	# Arduino Parameters
-	arduinoSampleFrequency = 1000
+	# Calculate the Arduino sample in seconds.
 	arduinoSampleRate = 1.0 / arduinoSampleFrequency
-	arduinoChannels = 2
 
 
 	# Initialize data and timeset buffers.
@@ -93,10 +94,8 @@ def oscilloscope():
 	plt.sca( ax )
 
 
-	# Serial communication parameters.
-	baudrate = 250000												# Set the baudrate. Make sure this matches the Arduino program.
-	port = "/dev/ttyACM0"											# Set the port the Arduino is connected to. /dev/ttyACMx for Linux and COMx for Windows.
-	cereal = serial.Serial( port = port, baudrate = baudrate )		# Create the serial communication object.
+	# Create the serial communication object.
+	cereal = serial.Serial( port = port, baudrate = baud )		
 
 
 	lastCheck = time.time()											# Set the initial check time.
@@ -159,7 +158,7 @@ def oscilloscope():
 
 				# Update the graph (when not paused) with the new data and X-axis labels.
 				# Update at a frame rate of sampleRate frames per second.
-				if ( time.time() - lastCheck ) > sampleRate:
+				if ( time.time() - lastCheck ) > refreshRate:
 					index = index + 1											# Increment frame count.
 					lastCheck = time.time()										# Update the last frame update time.
 					updateGraph( fig, lines, data, arduinoChannels, paused )	# Update the plot.
@@ -665,4 +664,11 @@ class ButtonProcessor():
 
 # Call main routine.
 if __name__ == "__main__":
-	oscilloscope()
+	if len( sys.argv ) == 6:
+		oscilloscope( 	baud = 						int( sys.argv[ 1 ] ), \
+						port = 							 sys.argv[ 2 ], \
+						refreshFrequency = 			int( sys.argv[ 3 ] ), \
+						arduinoChannels = 			int( sys.argv[ 4 ] ), \
+						arduinoSampleFrequency = 	int( sys.argv[ 5 ] ) )
+	else:
+		print( "Not enough arguments ({}): {}".format( len( sys.argv ), sys.argv ) )

@@ -206,6 +206,7 @@ def oscilloscope():
 			# cereal.reset_input_buffer()								# Flush
 	# print( "Frames in 20 seconds: {}.".format( index ) )
 
+
 '''
 	Initialize the oscilloscope view. By default, it shows 0 V to 5 V and 100 samples.
 
@@ -254,7 +255,7 @@ def initPlot( xlim = [ 0, 100 ], ylim = [ 0, 5.1 ], xlabel = "Sample", ylabel = 
 
 	@param 	fig 		The figure object that contains the oscilloscope view.
 
-	return 				None
+	return 				List of components created for the figure. Have to keep a reference to them for them to remain responsive.
 '''
 def addOscilloscopeInputs( fig ):
 	# Create labels for button sets.
@@ -300,6 +301,7 @@ def addOscilloscopeInputs( fig ):
 
 	# Return references to the buttons. This is required for them to remain responsive in the figure.
 	return [ bTimeStepIncrease, bTimeStepDecrease, bVoltStepIncrease, bVoltStepDecrease, bTimeIncrease, bTimeDecrease, bVoltIncrease, bVoltDecrease ]
+
 
 '''
 	SIGINT interrupt signal handler. Exit the program.

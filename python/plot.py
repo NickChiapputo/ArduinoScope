@@ -56,6 +56,7 @@ def oscilloscope():
 	numTimeDivs = 2 * numDivisions * timeStep							# Calculate the number of time divisions displayed on the scope.
 	dataHistoryLength = int( numTimeDivs * arduinoSampleFrequency )		# Create constant number of samples to store in history. Store arduinoSampleFrequency samples per time division. This keeps a consistent data density.
 	data = np.zeros( ( arduinoChannels, dataHistoryLength ) )			# Create array to hold sample history for each channel.
+	print( "Data size: {}".format( dataHistoryLength ) )
 	
 	timeRange = dataHistoryLength * arduinoSampleRate					# Calculate the amount of time data will be held for.
 	minTime = -( timeRange / 2 ) + timeOffset 							# Calculate the minimum time by taking the negative half of the range and offsetting it.
@@ -70,7 +71,7 @@ def oscilloscope():
 	ylim = [ -( numDivisions * voltStep ) + voltOffset, numDivisions * voltStep + voltOffset ]
 	xlabel = "Time (s)"
 	ylabel = "Voltage (V)"
-	title = "Oscilloscope"
+	title = "Nicktronix"
 
 
 	# Create the figure and plot the initial data (all zero line).
@@ -212,8 +213,8 @@ def oscilloscope():
 					# Initialize data and timeset buffers.
 					numTimeDivs = 2 * numDivisions * timeStep							# Calculate the number of time divisions displayed on the scope.
 					dataHistoryLength = int( numTimeDivs * arduinoSampleFrequency )		# Create constant number of samples to store in history. Store arduinoSampleFrequency samples per time division. This keeps a consistent data density.
-					print( "numTimeDivs: {}\ndataHistoryLength: {}".format( numTimeDivs, dataHistoryLength ) )
 					data = np.zeros( ( arduinoChannels, dataHistoryLength ) )			# Create array to hold sample history for each channel.
+					print( "Data size: {}".format( dataHistoryLength ) )
 					
 					timeRange = dataHistoryLength * arduinoSampleRate					# Calculate the amount of time data will be held for.
 					minTime = -( timeRange / 2 ) + timeOffset 							# Calculate the minimum time by taking the negative half of the range and offsetting it.
@@ -411,26 +412,108 @@ class ButtonProcessor():
 		return 			None
 	'''
 	def __init__( self, axes, label, btnType ):
-		self.button = Button( axes, label )
+		self.button = Button( axes, label )				# Create the button object with the given axes location and label text.
+		self.btnType = btnType							# Set the button type.
 
-		if btnType == "pause":
-			self.button.on_clicked( self.processPause )
-		elif btnType == "timeStepUp":
-			self.button.on_clicked( self.processTimeStepUp )
-		elif btnType == "timeStepDown":
-			self.button.on_clicked( self.processTimeStepDown )
-		elif btnType == "voltStepUp":
-			self.button.on_clicked( self.processVoltStepUp )
-		elif btnType == "voltStepDown":
-			self.button.on_clicked( self.processVoltStepDown )
-		elif btnType == "timeUp":
-			self.button.on_clicked( self.processTimeUp )
-		elif btnType == "timeDown":
-			self.button.on_clicked( self.processTimeDown )
-		elif btnType == "voltUp":
-			self.button.on_clicked( self.processVoltUp )
-		elif btnType == "voltDown":
-			self.button.on_clicked( self.processVoltDown )
+		self.button.on_clicked( self.processAction )	# Add a callback function for the on_click action.
+
+
+	'''
+		Click event handler. Actions depend on the button type that was clicked.
+		Handle division size and offset increase/decrease for voltage and time.
+		Handle pause/unpause scope view.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
+	'''
+	def processAction( self, event ):
+		# Define the global parameters for use within this scope
+
+		# Update the paused flag if the button is the pause button.
+		global paused
+		paused = ( not paused ) if self.btnType == "pause" else paused
+		
+		global timeStepOptions
+		global timeStepIndex
+		global timeStep
+		
+		global timeOffset
+		
+		global voltStepOptions
+		global voltStepIndex
+		global voltStep
+
+		global voltOffset
+
+
+		# Set the update divisions flag to change the scope view if the button is not the pause button
+		global updateDivisions
+		updateDivisions = True if self.btnType != "pause" else False
+
+		# Switch on the button type, perform relevent actions.
+
+		# If pause button, flip the pause flag and change the label text to match.
+		if self.btnType == "pause":
+			paused = not paused
+			self.button.label.set_text( "►" if paused else "▌▌" )
+
+			print( "Pause: {}".format( paused ) )
+
+		# If the secs/div increase button, change the time step value.
+		elif self.btnType == "timeStepUp":
+			timeStepIndex = ( len( timeStepOptions ) - 1 ) if ( ( timeStepIndex + 1 ) >= len( timeStepOptions ) ) else ( timeStepIndex + 1 )
+
+			timeStep = timeStepOptions[ timeStepIndex ]
+
+			print( "Increase Time Step: {}".format( timeStep ) )
+
+		# If the secs/div decrease button, change the time step value.
+		elif self.btnType == "timeStepDown":
+			timeStepIndex = 0 if ( ( timeStepIndex - 1 ) < 0 ) else ( timeStepIndex - 1 )
+			timeStep = timeStepOptions[ timeStepIndex ]
+
+			print( "Decrease Time Step: {}".format( timeStep ) )
+
+		# If the volt/div increase button, change the volt step value.
+		elif self.btnType == "voltStepUp":
+			voltStepIndex = ( len( voltStepOptions ) - 1 ) if ( ( voltStepIndex + 1 ) >= len( voltStepOptions ) ) else ( voltStepIndex + 1 )
+			voltStep = voltStepOptions[ voltStepIndex ]
+
+			print( "Increase Volt Step: {}".format( voltStep ) )
+
+		# If the volt/div decrease button, change the volt step value.
+		elif self.btnType == "voltStepDown":
+			voltStepIndex = 0 if ( ( voltStepIndex - 1 ) < 0 ) else ( voltStepIndex - 1 )
+			voltStep = voltStepOptions[ voltStepIndex ]
+
+			print( "Decrease Volt Step: {}".format( voltStep ) )
+
+		# If the time offset increase button, increase the time offset value by the time step amount.
+		elif self.btnType == "timeUp":
+			timeOffset = timeOffset + timeStep
+
+			print( "Increase Time Offset: {}".format( timeOffset ) )
+
+		# If the time offset decrease button, decrease the time offset value by the time step amount.
+		elif self.btnType == "timeDown":
+			timeOffset = timeOffset - timeStep
+
+			print( "Decrease Time Offset: {}".format( timeOffset ) )
+
+		# If the volt offset increase button, increase the volt offset value by the volt step amount.
+		elif self.btnType == "voltUp":
+			voltOffset = voltOffset + voltStep
+
+			print( "Increase Volt Offset: {}".format( voltOffset ) )
+
+		# If the volt offset decrease button, decrease the volt offset value by the volt step amount.
+		elif self.btnType == "voltDown":
+			voltOffset = voltOffset - voltStep
+
+			print( "Decrease Volt Offset: {}".format( voltOffset ) )
+
 
 	'''
 		Click event handler for the pause button. Toggle the oscilloscope pause feature.
@@ -450,6 +533,11 @@ class ButtonProcessor():
 
 	'''
 		Click event handler for the time division step increase.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
 	'''
 	def processTimeStepUp( self, event ):
 		global timeStepOptions
@@ -467,6 +555,11 @@ class ButtonProcessor():
 
 	'''
 		Click event handler for the time division step decrease.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
 	'''
 	def processTimeStepDown( self, event ):
 		global timeStepOptions
@@ -483,6 +576,11 @@ class ButtonProcessor():
 
 	'''
 		Click event handler for the volt division step increase.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
 	'''
 	def processVoltStepUp( self, event ):
 		global voltStepOptions
@@ -500,6 +598,11 @@ class ButtonProcessor():
 
 	'''
 		Click event handler for the volt division step decrease.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
 	'''
 	def processVoltStepDown( self, event ):
 		global voltStepOptions
@@ -517,6 +620,11 @@ class ButtonProcessor():
 
 	'''
 		Click event handler for the time division offset increase.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
 	'''
 	def processTimeUp( self, event ):
 		global timeStep
@@ -532,6 +640,11 @@ class ButtonProcessor():
 
 	'''
 		Click event handler for the time division offset decrease.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
 	'''
 	def processTimeDown( self, event ):
 		global timeStep
@@ -547,6 +660,11 @@ class ButtonProcessor():
 
 	'''
 		Click event handler for the volt division offset increase.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
 	'''
 	def processVoltUp( self, event ):
 		global voltStep
@@ -562,6 +680,11 @@ class ButtonProcessor():
 
 	'''
 		Click event handler for the volt division offset decrease.
+
+		@param self 	The button object.
+		@param event 	Event object. Represents the type of event that occured.
+
+		return 			None
 	'''
 	def processVoltDown( self, event ):
 		global voltStep
@@ -573,10 +696,6 @@ class ButtonProcessor():
 
 		global updateDivisions
 		updateDivisions = True
-
-'''
-	Object representing 
-'''
 
 
 # Call main routine.

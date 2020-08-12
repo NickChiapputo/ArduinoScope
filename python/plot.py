@@ -84,46 +84,10 @@ def oscilloscope():
 	ax.margins( x = 0, y = 0 )
 
 
-	# Add the oscilloscope input buttons (volts/div and secs/div changes and volt/secs offset)
-	# Create labels for button sets.
-	fig.text( 0.90, 0.875, "secs/div", 			horizontalalignment = "center", verticalalignment = "center" )
-	fig.text( 0.90, 0.675, "volt/div", 			horizontalalignment = "center", verticalalignment = "center" )
-	fig.text( 0.90, 0.475, "Time Offset", 		horizontalalignment = "center", verticalalignment = "center" )
-	fig.text( 0.90, 0.275, "Voltage Offset", 	horizontalalignment = "center", verticalalignment = "center" )
-
-	# Create pause button.
-	axPause = plt.axes( [ 0.75, 0.05, 0.1, 0.075 ] )
-	bPause = ButtonProcessor( axPause, "▌▌", "pause" )
-
-	# Create secs/div increase/decrease step buttons.
-	axTimeStepIncrease = plt.axes( [ 0.83, 0.80, 0.05, 0.04 ] )
-	axTimeStepDecrease = plt.axes( [ 0.92, 0.80, 0.05, 0.04 ] )
-
-	bTimeStepIncrease = ButtonProcessor( axTimeStepIncrease, "+", "timeStepUp"   )
-	bTimeStepDecrease = ButtonProcessor( axTimeStepDecrease, "-", "timeStepDown" )
-
-	# Create volt/div increase/decrease step buttons.
-	axVoltStepIncrease = plt.axes( [ 0.83, 0.60, 0.05, 0.04 ] )
-	axVoltStepDecrease = plt.axes( [ 0.92, 0.60, 0.05, 0.04 ] )
-
-	bVoltStepIncrease = ButtonProcessor( axVoltStepIncrease, "+", "voltStepUp"   )
-	bVoltStepDecrease = ButtonProcessor( axVoltStepDecrease, "-", "voltStepDown" )
-
-	# Create secs/div increase/decrease offset buttons.
-	axTimeIncrease = plt.axes( [ 0.83, 0.40, 0.05, 0.04 ] )
-	axTimeDecrease = plt.axes( [ 0.92, 0.40, 0.05, 0.04 ] )
-
-	bTimeIncrease = ButtonProcessor( axTimeIncrease, "+", "timeUp"   )
-	bTimeDecrease = ButtonProcessor( axTimeDecrease, "-", "timeDown" )
-
-	# Create volt/div increase/decrease offset buttons.
-	axVoltIncrease = plt.axes( [ 0.83, 0.20, 0.05, 0.04 ] )
-	axVoltDecrease = plt.axes( [ 0.92, 0.20, 0.05, 0.04 ] )
-
-	bVoltIncrease = ButtonProcessor( axVoltIncrease, "+", "voltUp"   )
-	bVoltDecrease = ButtonProcessor( axVoltDecrease, "-", "voltDown" )
-
-	fig.subplots_adjust( bottom = 0.2, right = 0.75 )
+	# Add the oscilloscope input buttons (volts/div and secs/div changes and volt/secs offset).
+	# Need to capture the return value (list of the created buttons) because we are required to 
+	# maintain a reference to them for them to remain responsive.
+	buttons = addOscilloscopeInputs( fig )
 
 	# Reset the current axis.
 	plt.sca( ax )
@@ -132,8 +96,6 @@ def oscilloscope():
 	# Serial communication parameters.
 	baudrate = 250000												# Set the baudrate. Make sure this matches the Arduino program.
 	port = "/dev/ttyACM0"											# Set the port the Arduino is connected to. /dev/ttyACMx for Linux and COMx for Windows.
-
-
 	cereal = serial.Serial( port = port, baudrate = baudrate )		# Create the serial communication object.
 
 
@@ -335,6 +297,9 @@ def addOscilloscopeInputs( fig ):
 
 	fig.subplots_adjust( bottom = 0.2, right = 0.8 )
 
+
+	# Return references to the buttons. This is required for them to remain responsive in the figure.
+	return [ bTimeStepIncrease, bTimeStepDecrease, bVoltStepIncrease, bVoltStepDecrease, bTimeIncrease, bTimeDecrease, bVoltIncrease, bVoltDecrease ]
 
 '''
 	SIGINT interrupt signal handler. Exit the program.

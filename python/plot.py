@@ -122,8 +122,7 @@ def oscilloscope():
 				# Convert each data point into a floating-point value.
 				# Do this before updating the lists in case one of them is faulty.
 				# This keeps the data lined up.
-				for i in range( 0, arduinoChannels ):
-					inputData[ i ] = float( inputData[ i ] )
+				inputData = [ float( inputData[ i ] ) for i in range( 0, arduinoChannels ) ]
 
 
 				# Print out the current reading.
@@ -300,7 +299,7 @@ def addOscilloscopeInputs( fig ):
 
 
 	# Return references to the buttons. This is required for them to remain responsive in the figure.
-	return [ bTimeStepIncrease, bTimeStepDecrease, bVoltStepIncrease, bVoltStepDecrease, bTimeIncrease, bTimeDecrease, bVoltIncrease, bVoltDecrease ]
+	return [ bPause, bTimeStepIncrease, bTimeStepDecrease, bVoltStepIncrease, bVoltStepDecrease, bTimeIncrease, bTimeDecrease, bVoltIncrease, bVoltDecrease ]
 
 
 '''
@@ -423,7 +422,6 @@ class ButtonProcessor():
 
 		# If pause button, flip the pause flag and change the label text to match.
 		if self.btnType == "pause":
-			paused = not paused
 			self.button.label.set_text( "►" if paused else "▌▌" )
 
 			print( "Pause: {}".format( paused ) )

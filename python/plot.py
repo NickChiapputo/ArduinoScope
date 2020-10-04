@@ -24,7 +24,7 @@ timeStepIndex = 5
 timeStep = timeStepOptions[ timeStepIndex ] 	# Seconds per division (sec/div).
 timeOffset = 10									# Movement left/right on X-axis.
 
-voltStepIndex = 3
+voltStepIndex = 4
 voltStep = timeStepOptions[ voltStepIndex ]  	# Volts per division (volts/div).
 voltOffset = 0									# Movement up/down on X-axis
 

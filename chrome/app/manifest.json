@@ -11,20 +11,8 @@
 		}
 	},
 
-	// "description": "Free Membean Minutes",
-	
-	// "icons": 
-	// {
-	//    "128": "image_128.png",
-	//    "16": "image_16.png",
-	//    "32": "image_32.png",
-	//    "48": "image_48.png"
-	// },
-	
 	"permissions": 
 	[	
-		"serial",	// Serial API to read from and write to a device connected to a serial port. 
-		"identity", 
-		"storage"
+		"serial"
 	]
 }

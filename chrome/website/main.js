@@ -12,6 +12,16 @@ connectBtn.onclick = connect;
 
 window.addEventListener( "load", async ( event ) => {
 	contentArea = document.getElementById( "content" );
+
+	if( "serial" in navigator )
+	{
+		contentArea.value = "Serial API found!";
+	}
+	else
+	{
+		contentArea.value = "Serial API not found!";
+		connectBtn.onclick = () => { contentArea.value = "Can't connect to serial ports. Serial API not found."; };
+	}
 } );
 
 async function connect()

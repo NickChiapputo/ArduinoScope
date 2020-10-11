@@ -37,10 +37,11 @@ void setup() {
    	// Max value is 2^16 - 1 = 65,535
 	// OCR1AH = 0x07;
 	// OCR1AL = 0xD0;
-	OCR1A = 62500;
-
-	OCR1BH = 0x03;
-	OCR1BL = 0xE8;
+//	OCR1A = 62500;	// 250 ms,	4 Hz
+	OCR1A = 25000;	// 100 ms,	10 Hz
+//	OCR1A = 12500;	// 50 ms,	20 Hz
+//	OCR1A = 2500;	// 10 ms,	100 Hz
+//	OCR1A = 250;	// 1 ms,	1000 Hz
 
 	sei();	// Enable interrupts.
 }

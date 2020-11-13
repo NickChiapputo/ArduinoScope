@@ -1,26 +1,31 @@
 const cereal = navigator.serial;
 
 var connected = false;
-var port = null;
-var decoder = new TextDecoderStream();
-var inputDone = null, inputStream = null, reader = null;
-var contentArea = null;
+var port = undefined;
+var inputDone = undefined, inputStream = undefined, reader = undefined;
+var bufferDataArea = undefined, plotDataArea = undefined, channelDataArea = undefined;
 
 var connectBtn = document.getElementById( "deviceConnect" );
 connectBtn.onclick = connect;
 
+var startTime, elapsedTime;
+var numDataPointsCollected;
+
 
 window.addEventListener( "load", async ( event ) => {
-	contentArea = document.getElementById( "content" );
+	bufferDataArea = document.getElementById( "bufferDataArea" );
+	plotDataArea = document.getElementById( "plotDataArea" );
+	channelDataArea = document.getElementById( "channelDataArea" );
+
 
 	if( "serial" in navigator )
 	{
-		contentArea.value = "Serial API found!";
+		bufferDataArea.value = "Serial API found!";
 	}
 	else
 	{
-		contentArea.value = "Serial API not found!";
-		connectBtn.onclick = () => { contentArea.value = "Can't connect to serial ports. Serial API not found."; };
+		channelDataArea.value = "Serial API not found!";
+		connectBtn.onclick = () => { channelDataArea.value = "Can't connect to serial ports. Serial API not found."; };
 	}
 } );
 
@@ -29,7 +34,7 @@ async function connect()
 	try
 	{
 		port = await cereal.requestPort();			// Open serial port selection dialog.
-		await port.open( { baudrate: 250000 } );	// Open the selected port.
+		await port.open( { baudRate: 250000 } );	// Open the selected port.
 	}
 	catch ( err )
 	{
@@ -42,11 +47,13 @@ async function connect()
 
 	console.log( "Port Selected: ", port );
 
-
+	let decoder = new TextDecoderStream();
 	inputDone = port.readable.pipeTo( decoder.writable );
 	inputStream = decoder.readable;
 
 	reader = inputStream.getReader();
+
+	startTime = performance.now();
 	
 	readLoop();
 }
@@ -55,12 +62,13 @@ async function disconnect()
 {
 	await reader.cancel();
 	await inputDone.catch( () => { console.log( "Port Closed." ); } );
-	reader = null;
-	inputDone = null;
+	reader = undefined;
+	inputDone = undefined;
 
 	await port.close();
+	port = undefined;
 
-	contentArea.value = "";
+	channelDataArea.value = "Port Closed.";
 
 	connectBtn.onclick = connect;
 	connectBtn.value = "Connect";
@@ -74,37 +82,92 @@ async function readLoop()
 
 	while( true )
 	{
-		const{ value, done } = await reader.read();
-		if( value )
+		try
 		{
-			buffer += value;
+			const{ value, done } = await reader.read();
 
-			if( buffer.includes( "\n" ) )
+			if( value )
 			{
-				let idx = buffer.indexOf( "\n" );
-				values = buffer.substr( 0, idx ).split( " " );
-				buffer = buffer.substr( idx + 1 );
+				buffer += value;
 
-				contentArea.value = value + "\n";
-				for( i = 0; i < values.length; i++ )
+				bufferDataArea.value = "Samples Ready: " + ( buffer.split( "\n" ).length ) + "\n";
+				bufferDataArea.value += buffer;
+
+				if( buffer.includes( "\n" ) )
 				{
-					values[ i ] = parseFloat( values[ i ] );
-					contentArea.value += values[ i ] + " ";
-				}
-				contentArea.value += "\nChannels: " + values.length;
+					/*
+					let idx = buffer.indexOf( "\n" );
+					values = buffer.substring( 0, idx ).split( " " );
+					buffer = buffer.substring( idx + 1 );
 
-				if( values.length !== numChannels )
-				{
-					console.log( values.length + " !== " + numChannels, "'" + value + "'" );
-				}
+					plotDataArea.value = "";
+					for( i = 0; i < values.length; i++ )
+					{
+						values[ i ] = 5 * parseFloat( values[ i ] ) / 1023;
+						plotDataArea.value += values[ i ] + " ";
+					}
+					channelDataArea.value = "Channels: " + values.length;
 
-				plotPoints( values );
+					if( values.length !== numChannels )
+					{
+						console.log( values.length + " !== " + numChannels, "'" + value + "'" );
+					}
+
+					plotPoints( values );
+					*/
+
+					let bufferLines = buffer.split( "\n" );
+					let currLine, idx;
+					plotDataArea.value = "";
+					for( i = 0, max = ( bufferLines.length - 1 ) < 100 ? ( bufferLines.length - 1 ) : 100; i < max; i++ )
+					{
+						currLine = bufferLines[ i ];
+
+						// We can remove this ONLY if we know the exact format of the data.
+						// If we change to an exact compression (e.g., one char per data point),
+						// then we can change this function call to a static value or replace it
+						// in the substring call with a static value.
+						idx = currLine.indexOf( "\n" );	
+
+						values = currLine.split( " " );
+
+						let temp;
+						for( j = 0, numVals = values.length; j < numVals; j++ )
+						{
+							temp = parseFloat( values[ j ] );
+							if( temp > yHigh )
+								values[ j ] = 5 * temp / 1023;
+							else
+								values[ j ] = temp;
+
+							// values[ j ] = 5.0 * ( values[ j ].charCodeAt( 0 ) ) / 255;
+							plotDataArea.value += values[ j ] + " ";
+						}
+						plotDataArea.value += "\n";
+						channelDataArea.value = "Channels: " + values.length;
+
+						if( values.length !== numChannels )
+						{
+							console.log( values.length + " !== " + numChannels, "'" + values + "'" );
+						}
+
+						plotPoints( values );
+					}
+
+					buffer = bufferLines[ bufferLines.length - 1 ];
+				}
+			}
+
+			if( done )
+			{
+				console.log( "[readLoop] DONE", done );
+				reader.releaseLock();
+				break;
 			}
 		}
-
-		if( done )
+		catch( err )
 		{
-			console.log( "[readLoop] DONE", done );
+			bufferDataArea.value = err;
 			reader.releaseLock();
 			break;
 		}
@@ -170,13 +233,13 @@ function plotPoints( values )
 
 var interval = 125;
 var numVals = 0;
-var maxVals = 11;
+var maxVals = 10000 + 1;
 
 var xHigh = maxVals - 1, xLow = 0;
 var yHigh = 5, yLow = 0;
 let xrange = [ xLow, xHigh ];
 let yrange = [ yLow, yHigh ];
-
+let y_tickvals = [ 0, 1, 2, 3, 4, 5 ]
 
 let index = 0;
 let numChannels = 2;
@@ -185,31 +248,31 @@ for( let idx = 0; idx < numChannels; idx++ )
 {
 	data.push( { y: [], x: [] } );
 }
-console.log( data );
-// let data = [ { y: [], x: [] } ];
-// let i;
-// for( i = 0; i < maxVals; i++ )
-// {
-// 	data[ 0 ][ 'x' ][ i ] = i;
-// 	data[ 0 ][ 'y' ][ i ] = undefined;
-// }
 
 let layout = {
 	'margin': { t: 0 },
 	xaxis: {
 		title: "Sample",
 		showgrid: true,
-		range: xrange
+		range: xrange,
+		automargin: true
 	},
 	yaxis: {
 		title: "Value",
 		showgrid: true,
-		range: yrange
+		range: yrange,
+		tickvals: y_tickvals,
+		automargin: true		// Required to fit the top tick mark on the plot if it's equal to the maximum y-axis value.
 	}
-}
+};
+
+let config = {
+	staticPlot: true,	// Remove hover icons.
+	responsive: true
+};
 
 TESTER = document.getElementById('tester');
-Plotly.newPlot( TESTER, data, layout );
+Plotly.newPlot( TESTER, data, layout, config );
 
 var updateLayoutFlag = true;
 

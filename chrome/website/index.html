@@ -3,7 +3,12 @@
 	<head>
 		<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
 		<meta content="utf-8" http-equiv="encoding">
+
+		<!-- Origin trial Serial API key for localhost -->
 		<meta http-equiv="origin-trial" content="AnKRMuATxTTacHMlTjcn2HpMqMTHqHlXYsF2oB/s+B04EU8fNQeM76dIFj+e/VH9ac3rOSKscGf4nsHf8PiPkgAAAABHeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjgwIiwiZmVhdHVyZSI6IlNlcmlhbCIsImV4cGlyeSI6MTYwNjAxNTczNH0="> 
+
+		<!-- Origin trial Serial API key for https://72.180.12.21/ -->
+		<meta http-equiv="origin-trial" content="Aux2VfNFC4RVaBTqxXhd0QM1VokXaeIrsYa4xR+srs9frbXpMbsMVBN1ACMu/H53a0DyqK/5cfMEtUYfIqO7EwUAAABMeyJvcmlnaW4iOiJodHRwczovLzcyLjE4MC4xMi4yMTo0NDMiLCJmZWF0dXJlIjoiU2VyaWFsIiwiZXhwaXJ5IjoxNjA2MDgyODY1fQ=="> 
   
 		<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
@@ -16,11 +21,24 @@
 	<body>		
 		<input id="deviceConnect" type="button" value="Connect" />
 
-		<div id="tester" style="width:600px;height:250px;"></div>
+		<div id="tester" style="width:50vw;height:50vh; margin-top: 20px;"></div>
 	
 		<input id="low" type="number" value="0">
-		<input id="high" type="number" value="10">
-		<textarea id="content" style="width: 90vw; margin-top: 10px;" readonly>
+		<input id="high" type="number" value="100"><br />
+
+		<div>
+			<h3 style="display: inline-block; width: 45vw; margin: 20px 0 0 0;"> Buffer Data </h3>
+			<h3 style="display: inline-block; width: 45vw; margin: 20px 0 0 3vw;"> Parsed Data </h3>
+		</div>
+
+		<textarea id="bufferDataArea" style="width: 44vw; margin: 10px 0 0 0;" rows="10"  readonly>
+		</textarea>
+
+		<textarea id="plotDataArea" style="width: 45vw; margin: 10px 0 0 3vw;" rows="10"  readonly>
+		</textarea>
+
+		<h3 style="display: inline-block; width: 95vw; text-align: center; margin: 30px 0 0 0;">Channel Data</h3>
+		<textarea id="channelDataArea" style="width: 94vw; margin: 10px 0 0 0;" rows="5" readonly>
 		</textarea>
 	</body>
 

@@ -1,10 +1,4 @@
-uint16_t channelOneVal = 0;			// Variable used to store value read from channel one input.
-float channelOneVoltage = 0.0;		// Voltage calculation from channel one input.
-
-uint16_t channelTwoVal = 0;			// Variable used to store value read from channel two input.
-float channelTwoVoltage = 0.0;		// Voltage calculation from channel two input.
-
-
+/**** Macros to clear (cbi) and set (sbi) individual bits in registers. ****/
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
 #endif
@@ -13,22 +7,12 @@ float channelTwoVoltage = 0.0;		// Voltage calculation from channel two input.
 #endif
 
 
-#define A0_SELECT B00000001
-#define A1_SELECT B00000010
-#define A2_SELECT B00000100
-#define A3_SELECT B00001000
-#define A4_SELECT B00010000
-#define A5_SELECT B00100000
-uint8_t channelSelect = A0_SELECT | A2_SELECT | A4_SELECT;
-uint8_t currentChannel = 0;
-uint8_t numChannels = 6;
-uint8_t channels[] = 	{
+/**** Define channel select variables ****/
+#define NUM_CHANNELS 2					// Constant number of channels to measure from.
+uint8_t currentChannel = 0;				// Keep track of the current selected channel.
+uint8_t channels[] = 	{				// List of channel MUX values:
 							B01100000, 		// A0
-							B01100001,		// A1
-							B01100010, 		// A2
-							B01100011,		// A3
-							B01100100,		// A4
-							B01100101 		// A5
+							B01100001		// A1
 						};
 
 
@@ -53,7 +37,7 @@ uint8_t channels[] = 	{
 	* 	 64			 52     us 	 19.231 kHz
 	* 	128			104     us 	  9.615 kHz
 ****/
-#define ADC_PRESCALAR 16
+#define ADC_PRESCALAR 2
 
 
 /**** Define Timer1 frequency ****/
@@ -78,10 +62,10 @@ uint8_t channels[] = 	{
 // #define UART_BAUDRATE 1000000		// 1M
 #define UART_BAUDRATE 2000000		// 2M
 
+
 void initADC()
 {
 	// Setup ADC registers.
-	// ADMUX  = B01000000; // Set reference voltage to Vcc. Right adjust data. Initially set MUX to channel 0 (A0).
 	ADMUX = B01100000; // Set reference voltage to Vcc. Left adjust data. Initially set MUX to channel 0 (A0).
 
 
@@ -125,33 +109,18 @@ void initADC()
 }
 
 
-void initTimer1()
+void setup() 
 {
-	// Set up the Timer2 timer.
-	TIMSK1 = (TIMSK1 & B11111000) | B00000010;	// Enable output compare A match interrupt.
-	TCCR1A = (TCCR1A & B11111100) | B00000000;
-	TCCR1B = (TCCR1B & B11100000) | B00001011;	// Set the clock divisor to 64 (011). Run at 16 MHz / 64 = 250 kHz
-
-   	// Set capture/compare register value for Timer1A
-	OCR1A = TIMER1_OUTPUTCOMPARE_A;
-}
-
-
-void setup() {
 	// Initialize the serial communication with baud rate 250000.
 	Serial.begin( UART_BAUDRATE );
 
 	cli();	// Disable interrupts.
 
-
 	initADC();
-
-
-	// initTimer1();
-
 
 	sei();	// Enable interrupts.
 }
+
 
 void loop() 
 {
@@ -160,38 +129,27 @@ void loop()
 
 ISR( ADC_vect )
 {
-	if( ++currentChannel == numChannels )
-	{
+	// Go to the next channel. If we are at
+	// the last channel, then return to the first.
+	if( ++currentChannel == NUM_CHANNELS )
 		currentChannel = 0;
-	}
 
 	// Set the analog pin MUX.
 	ADMUX = channels[ currentChannel ];
 
+
 	// Read from the ADC data register.
 	// Reading from ADCH triggers next conversion.
-	// uint8_t res = ADCH;
+	// Print out the data in hex format.
 	Serial.print( ADCH, HEX );
 
+
+	// If we did not just sample the last channel,
+	// display the space delimiter bewteen data.
+	// Otherwise print newline to show end of data.
 	if( currentChannel )
-	{
 		Serial.print( " " );
-		ADCSRA |= bit (ADSC);
-	}
 	else
-	{
 		Serial.print( "\n" );
-
-		// if( ++outputCount < maxOutput )
-		// {
-		// 	ADCSRA |= bit (ADSC);
-		// }
-	}
-
-
-	// If not in free-running mode,
-	// set the ADSC bit to start 
-	// the next conversion.
-	// ADCSRA |= bit (ADSC);
 }
 

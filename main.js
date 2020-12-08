@@ -279,7 +279,7 @@ let y_tickvals = [ 0, 1, 2, 3, 4, 5 ]
 let conversionFlag = true;
 
 let index = 0;
-let numChannels = 6;
+let numChannels = 2;
 let data = [];
 for( let idx = 0; idx < numChannels; idx++ )
 {

@@ -10,6 +10,7 @@ connectBtn.onclick = connect;
 
 var startTime, elapsedTime;
 var numDataPointsCollected;
+var collectionCount, collectionCountBuffer = 5;	// Ignore the first 5 data point collections when testing the start time.
 
 
 window.addEventListener( "load", async ( event ) => {
@@ -34,7 +35,7 @@ async function connect()
 	try
 	{
 		port = await cereal.requestPort();			// Open serial port selection dialog.
-		await port.open( { baudRate: 250000 } );	// Open the selected port.
+		await port.open( { baudRate: 2000000 } );	// Open the selected port.
 	}
 	catch ( err )
 	{
@@ -53,7 +54,9 @@ async function connect()
 
 	reader = inputStream.getReader();
 
-	startTime = performance.now();
+	// startTime = performance.now();
+	numDataPointsCollected = 0;
+	collectionCount = 0;
 	
 	readLoop();
 }
@@ -68,7 +71,7 @@ async function disconnect()
 	await port.close();
 	port = undefined;
 
-	channelDataArea.value = "Port Closed.";
+	channelDataArea.value += "\n\nPort Closed.";
 
 	connectBtn.onclick = connect;
 	connectBtn.value = "Connect";
@@ -119,7 +122,7 @@ async function readLoop()
 					let bufferLines = buffer.split( "\n" );
 					let currLine, idx;
 					plotDataArea.value = "";
-					for( i = 0, max = ( bufferLines.length - 1 ) < 100 ? ( bufferLines.length - 1 ) : 100; i < max; i++ )
+					for( i = 0, max = ( bufferLines.length - 1 ) < 1000 ? ( bufferLines.length - 1 ) : 100; i < max; i++ )
 					{
 						currLine = bufferLines[ i ];
 
@@ -134,21 +137,45 @@ async function readLoop()
 						let temp;
 						for( j = 0, numVals = values.length; j < numVals; j++ )
 						{
-							temp = parseFloat( values[ j ] );
-							if( temp > yHigh )
-								values[ j ] = 5 * temp / 1023;
+							// temp = parseFloat( values[ j ] );
+							// temp = values[ j ].charCodeAt( 0 );
+							temp = parseInt( values[ j ], 16 )
+							if( isNaN( temp ) )
+								continue;
+
+							if( conversionFlag )
+								values[ j ] = 5 * temp / 255;
 							else
 								values[ j ] = temp;
 
-							// values[ j ] = 5.0 * ( values[ j ].charCodeAt( 0 ) ) / 255;
-							plotDataArea.value += values[ j ] + " ";
+							
+							// plotDataArea.value += values[ j ] + " ";
 						}
-						plotDataArea.value += "\n";
-						channelDataArea.value = "Channels: " + values.length;
+						// plotDataArea.value += "\n";
+
+						if( collectionCount >= collectionCountBuffer )
+						{
+							numDataPointsCollected += values.length;
+							elapsedTime = performance.now() - startTime;
+						}
+						else if( collectionCount == 4 )
+						{
+							startTime = performance.now();
+							collectionCount++;
+						}
+						else
+						{
+							collectionCount++;
+						}
+
+						channelDataArea.value =   "Channels:              " + values.length + 
+												"\nElapsed Time:          " + ( elapsedTime / 1000 ).toFixed( 2 ) + " seconds" + 
+												"\nData Points Collected: " + numDataPointsCollected + 
+												"\nDPS:                   " + ( numDataPointsCollected / ( elapsedTime / 1000 ) ).toFixed( 2 ) + " Sps";
 
 						if( values.length !== numChannels )
 						{
-							console.log( values.length + " !== " + numChannels, "'" + values + "'" );
+							// console.log( values.length + " !== " + numChannels, "'" + values + "'" );
 						}
 
 						plotPoints( values );
@@ -182,7 +209,7 @@ function plotPoints( values )
 	{
 		if( values.length === numChannels )
 		{
-			data[ i ][ 'y' ][ index ] = values[ i ] === undefined ? 0 : values[ i ];
+			data[ i ][ 'y' ][ index ] = values[ i ] === undefined || isNaN( values[ i ] ) ? 0 : values[ i ];
 			data[ i ][ 'x' ][ index ] = index;
 		}
 		else
@@ -215,6 +242,13 @@ function plotPoints( values )
 		}
 	);
 
+	// let data_update = { data: data };
+	// let layout_update = { 
+	// 	'xaxis.range': [ xLow, xHigh ],
+	// 	'yaxis.range': [ yLow, yHigh ]
+	// };
+	// Plotly.update( TESTER, data_update, layout_update );
+
 
 	if( updateLayoutFlag )
 	{
@@ -241,8 +275,11 @@ let xrange = [ xLow, xHigh ];
 let yrange = [ yLow, yHigh ];
 let y_tickvals = [ 0, 1, 2, 3, 4, 5 ]
 
+// Define whether input needs to be converted
+let conversionFlag = true;
+
 let index = 0;
-let numChannels = 2;
+let numChannels = 6;
 let data = [];
 for( let idx = 0; idx < numChannels; idx++ )
 {

@@ -12,6 +12,7 @@ var startTime, elapsedTime;
 var numDataPointsCollected;
 var collectionCount, collectionCountBuffer = 5;	// Ignore the first 5 data point collections when testing the start time.
 
+let intervalID = undefined;
 
 window.addEventListener( "load", async ( event ) => {
 	bufferDataArea = document.getElementById( "bufferDataArea" );
@@ -48,7 +49,7 @@ async function connect()
 
 	console.log( "Port Selected: ", port );
 
-	let decoder = new TextDecoderStream();
+	let decoder = new TextDecoderStream( "utf-8" );
 	inputDone = port.readable.pipeTo( decoder.writable );
 	inputStream = decoder.readable;
 
@@ -59,6 +60,7 @@ async function connect()
 	collectionCount = 0;
 	
 	readLoop();
+	intervalID = setInterval( plotPoints, 250 );
 }
 
 async function disconnect()
@@ -88,6 +90,7 @@ async function readLoop()
 		try
 		{
 			const{ value, done } = await reader.read();
+			console.log( typeof value, typeof done );
 
 			if( value )
 			{
@@ -132,11 +135,14 @@ async function readLoop()
 						// in the substring call with a static value.
 						idx = currLine.indexOf( "\n" );	
 
+						/*
 						values = currLine.split( " " );
 
 						let temp;
 						for( j = 0, numVals = values.length; j < numVals; j++ )
 						{
+							// for( let idx = 0; idx < values[ j ].length; idx++ )
+							// 	plotDataArea.value += "( " + values[ j ][ idx ] + ", " + values[ j ].charCodeAt( idx ) + " ) ";
 							// temp = parseFloat( values[ j ] );
 							// temp = values[ j ].charCodeAt( 0 );
 							temp = parseInt( values[ j ], 16 )
@@ -149,16 +155,47 @@ async function readLoop()
 								values[ j ] = temp;
 
 							
-							// plotDataArea.value += values[ j ] + " ";
 						}
-						// plotDataArea.value += "\n";
+						*/
+						// input = parseInt( currLine.substring( 0, 8 ), 16 );
 
-						if( collectionCount >= collectionCountBuffer )
+						values[ 0  ] = 5 * parseInt( currLine.substring( 0, 2 ), 16 ) / 255;
+						values[ 1  ] = 5 * parseInt( currLine.substring( 2, 4 ), 16 ) / 255;
+						// values[ 0 ] = 5 * ( ( input >> 6 ) & 0xff ) / 255;
+						// values[ 1 ] = 5 * ( ( input >> 4 ) & 0xff ) / 255;
+
+						// digitalVals = parseInt( currLine.substring( 4, 8 ), 16 );
+
+						for( j = 0; j < ( numChannels - 2 ); j++ )
 						{
-							numDataPointsCollected += values.length;
+							// values[ 2 + j ] = ( digitalVals & ( 0x800 >> j ) ) ? 5 : 0; 
+							values[ 2 + j ] = 0;
+						}
+						// values[ 2  ] = ( digitalVals & 0x8000 ) ? 5 : 0;
+						// values[ 3  ] = ( digitalVals & 0x4000 ) ? 5 : 0;
+						// values[ 4  ] = ( digitalVals & 0x2000 ) ? 5 : 0;
+						// values[ 5  ] = ( digitalVals & 0x1000 ) ? 5 : 0;
+						// values[ 6  ] = ( digitalVals & 0x0800 ) ? 5 : 0;
+						// values[ 7  ] = ( digitalVals & 0x0400 ) ? 5 : 0;
+						// values[ 8  ] = ( digitalVals & 0x0200 ) ? 5 : 0;
+						// values[ 9  ] = ( digitalVals & 0x0100 ) ? 5 : 0;
+						// values[ 10 ] = ( digitalVals & 0x0080 ) ? 5 : 0;
+						// values[ 11 ] = ( digitalVals & 0x0040 ) ? 5 : 0;
+						// values[ 12 ] = ( digitalVals & 0x0020 ) ? 5 : 0;
+						// values[ 13 ] = ( digitalVals & 0x0010 ) ? 5 : 0;
+						// values[ 14 ] = ( digitalVals & 0x0008 ) ? 5 : 0;
+						// values[ 15 ] = ( digitalVals & 0x0004 ) ? 5 : 0;
+						// values[ 16 ] = ( digitalVals & 0x0002 ) ? 5 : 0;
+						// values[ 17 ] = ( digitalVals & 0x0001 ) ? 5 : 0;
+						plotDataArea.value += values[ 0 ] + " " + values[ 1 ] + "\n";
+
+						if( collectionCount > collectionCountBuffer )
+						{
+							// numDataPointsCollected += values.length;
+							numDataPointsCollected += 2;
 							elapsedTime = performance.now() - startTime;
 						}
-						else if( collectionCount == 4 )
+						else if( collectionCount == collectionCountBuffer )
 						{
 							startTime = performance.now();
 							collectionCount++;
@@ -178,7 +215,21 @@ async function readLoop()
 							// console.log( values.length + " !== " + numChannels, "'" + values + "'" );
 						}
 
-						plotPoints( values );
+						for( j = 0; j < numChannels; j++ )
+						{
+							if( values.length === numChannels )
+							{
+								data[ j ][ 'y' ][ index ] = values[ j ] === undefined || isNaN( values[ j ] ) ? 0 : values[ j ];
+								data[ j ][ 'x' ][ index ] = index;
+							}
+							else
+							{
+								data[ j ][ 'y' ][ index ] = undefined;
+								data[ j ][ 'x' ][ index ] = undefined;
+							}
+						}
+
+						index = ( index + 1 ) % maxVals;
 					}
 
 					buffer = bufferLines[ bufferLines.length - 1 ];
@@ -194,6 +245,7 @@ async function readLoop()
 		}
 		catch( err )
 		{
+			disconnect();
 			bufferDataArea.value = err;
 			reader.releaseLock();
 			break;
@@ -202,29 +254,15 @@ async function readLoop()
 }
 
 
-function plotPoints( values )
+function plotPoints()
 {
 	let i, j;
-	for( i = 0; i < numChannels; i++ )
-	{
-		if( values.length === numChannels )
-		{
-			data[ i ][ 'y' ][ index ] = values[ i ] === undefined || isNaN( values[ i ] ) ? 0 : values[ i ];
-			data[ i ][ 'x' ][ index ] = index;
-		}
-		else
-		{
-			data[ i ][ 'y' ][ index ] = undefined;
-			data[ i ][ 'x' ][ index ] = undefined;
-		}
-	}
 
 	let numClear = ( maxVals * 0.02 ) < 1 ? 1 : ( maxVals * 0.02 );
 	for( i = 0; i < numChannels; i++ )
 		for( j = 1; j <= numClear; j++  )
 			data[ i ][ 'x' ][ ( index + j ) % maxVals ] = undefined;
 
-	index = ( index + 1 ) % maxVals;
 
 
 	Plotly.animate( TESTER,
@@ -279,7 +317,7 @@ let y_tickvals = [ 0, 1, 2, 3, 4, 5 ]
 let conversionFlag = true;
 
 let index = 0;
-let numChannels = 2;
+let numChannels = 10;
 let data = [];
 for( let idx = 0; idx < numChannels; idx++ )
 {

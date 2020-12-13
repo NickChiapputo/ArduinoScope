@@ -50,7 +50,7 @@ uint8_t channels[] = 	{				// List of channel MUX values:
 	* 	 64			 52     us 	 19.231 kHz
 	* 	128			104     us 	  9.615 kHz
 ****/
-#define ADC_PRESCALAR 32
+#define ADC_PRESCALAR 64
 
 
 /**** Define Timer1 frequency ****/
@@ -86,7 +86,7 @@ void initADC()
 	// Setup the ADCSRA register.
 	sbi( ADCSRA, ADEN );	// Enable ADC.
 	sbi( ADCSRA, ADSC );	// Start Conversion.
-	sbi( ADCSRA, ADATE );	// Enable Auto-Triggering.
+	cbi( ADCSRA, ADATE );	// Enable Auto-Triggering.
 	sbi( ADCSRA, ADIE );	// Enable ADC Interrupt.
 	cbi( ADCSRA, ADPS2 );	// Clear ADC Prescalar bis.
 	cbi( ADCSRA, ADPS1 );	// '' '' 
@@ -158,21 +158,23 @@ void loop()
 	{
 		// Go to the next channel. If we are at
 		// the last channel, then return to the first.
-		// currentChannel ^= 1;
-		if( ++currentChannel == NUM_CHANNELS )
-			currentChannel = 0;
+		currentChannel ^= 1;
+		// if( ++currentChannel == NUM_CHANNELS )
+		// 	currentChannel = 0;
 
 		// Set the analog pin MUX.
-		ADMUX = channels[ currentChannel ];
+		// ADMUX = channels[ currentChannel ];
+		ADMUX ^= 1;
 
 
 		// Print out the data in hex format.
-		// Serial.write( toHex[ ( adcHigh >> 4 ) ] );
-		// Serial.write( toHex[ adcHigh & 0x0f ] );
+		Serial.write( toHex[ ( adcHigh >> 4 ) ] );
+		Serial.write( toHex[ adcHigh & 0x0f ] );
 		// Serial.write( 32 );
-		Serial.print( adcHigh, HEX );
+		// Serial.print( adcHigh, HEX );
 		// Serial.write( 32 );
 		// Serial.write( adcHigh );
+		sbi( ADCSRA, ADSC );	// Start Conversion.
 
 
 		// If we did not just sample the last channel,
@@ -188,10 +190,10 @@ void loop()
 	        
 	        // Serial.write( logic >> 8 );
 	        // Serial.write( logic );
-	        Serial.write( toHex[ ( logic >> 12 ) & 0x000f ] );
-	        Serial.write( toHex[ ( logic >>  8 ) & 0x000f ] );
-	        Serial.write( toHex[ ( logic >>  4 ) & 0x000f ] );
-	        Serial.write( toHex[ ( logic       ) & 0x000f ] );
+	        Serial.write( toHex[ ( logic >> 12 ) & 0x000f ] );	// PINC
+	        Serial.write( toHex[ ( logic >>  8 ) & 0x000f ] );	// Top 4 of PIND
+	        Serial.write( toHex[ ( logic >>  4 ) & 0x000f ] );	// Bottom 2 of PIND, Top 2 of PINB
+	        Serial.write( toHex[ ( logic       ) & 0x000f ] );	// Bottom 4 of PINB
 	        // Serial.print( logic >> 8, HEX );
 	        // Serial.print( logic, HEX );
 

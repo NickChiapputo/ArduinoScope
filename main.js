@@ -1,18 +1,149 @@
 const cereal = navigator.serial;
 
-var connected = false;
-var port = undefined;
-var inputDone = undefined, inputStream = undefined, reader = undefined;
-var bufferDataArea = undefined, plotDataArea = undefined, channelDataArea = undefined;
 
-var connectBtn = document.getElementById( "deviceConnect" );
-connectBtn.onclick = connect;
+// Create global variables.
+// Connect Button.
+var connectBtn;
 
-var startTime, elapsedTime;
-var numDataPointsCollected;
-var collectionCount, collectionCountBuffer = 5;	// Ignore the first 5 data point collections when testing the start time.
 
-let intervalID = undefined;
+// Port Information
+var connected 	= false,
+	port 		= undefined,
+	inputDone 	= undefined, 
+	inputStream = undefined, 
+	reader 		= undefined;
+
+
+// Logging Output
+var bufferDataArea 	= undefined, 
+	plotDataArea 	= undefined, 
+	channelDataArea = undefined;
+
+
+// Analytics Tracking
+var startTime				= undefined, 
+	elapsedTime				= 0,
+	numDataPointsCollected 	= 0,
+	collectionCount 		= 0, 
+	collectionCountBuffer 	= 5;	// Ignore the first 5 data point collections when testing the start time.
+
+
+// Plotting
+var intervalID 			= undefined,
+	interval 			= 20,
+	intervalCnt			= 0,
+	digitalUpdateFreq	= 50,
+	numVals 			= 0,
+	maxVals 			= 10000 + 1,
+	xHigh 				= maxVals - 1,
+	xLow 				= 0,
+	yHigh 				= 5,
+	yLow 				= 0,
+	xrange 				= [ xLow, xHigh ],
+	yrange 				= [ yLow, yHigh ],
+	y_tickvals 			= [ 0, 1, 2, 3, 4, 5 ];
+
+
+// Data Recording
+var	conversionFlag 		= true,
+	index 				= 0,
+	numAnalogChannels 	= 2,
+	numDigitalChannels	= 16,
+	analogData 			= [],
+	digitalData			= [];
+
+for( let idx = 0; idx < numAnalogChannels; idx++ )
+	analogData.push( { y: [], x: [] } );
+digitalData.push( { y: [], x: [], type: "scatter", fill: "tozeroy" } )
+for( let idx = 1; idx < numDigitalChannels; idx++ )
+	digitalData.push( { y: [], x: [], yaxis: ( "y" + idx ), type: "scatter", fill: "tozeroy" } );
+
+var analogLayout = {
+	'margin': { 
+		t: 0,
+		// l: 0,
+		// r: 0,
+		// b: 0,
+		autoexpand: false 
+	},
+	// 'autosize': false,
+	xaxis: {
+		title: "Sample",
+		showgrid: true,
+		range: xrange,
+		automargin: true
+	},
+	yaxis: {
+		title: "Value",
+		showgrid: true,
+		range: yrange,
+		autorange: false,
+		tickvals: y_tickvals,
+		automargin: true		// Required to fit the top tick mark on the plot if it's equal to the maximum y-axis value.
+	}
+};
+
+var digitalLayout = { 
+	legend: {
+		traceorder: 'reversed'
+	},
+	// 'autosize': false, 
+	xaxis: { 
+		range: [0, maxVals] 
+	} 
+};
+for( let i = 0; i < numDigitalChannels; i++ )
+{
+	digitalLayout[ 'yaxis' + ( i == 0 ? '' : ( i + 1 ) ) ] = 
+	{
+		range: [ 0, 1.2 ],
+		domain: [ i * ( 1 / numDigitalChannels ), ( i + 1 ) * ( 1 / numDigitalChannels ) ],
+		visible: false,
+		autorange: false
+	}
+}
+console.log( digitalLayout );
+
+var analogConfig = {
+	staticPlot: true,	// Remove hover icons.
+	// responsive: true
+};
+
+var digitalConfig = {
+	staticPlot: true,
+	// responsive: true
+};
+
+var analogScope, digitalScope;
+
+var updateLayoutFlag = true;
+
+
+var lowInput = document.getElementById( "low" );
+lowInput.value = xLow;
+lowInput.addEventListener( "change", () => 
+	{
+		xLow = parseInt( lowInput.value );
+		maxVals = xHigh - xLow + 1;
+		updateLayoutFlag = true;
+
+		console.log( "High: ", xHigh, ", Low: ", xLow )
+	} 
+);
+
+var highInput = document.getElementById( "high" );
+highInput.value = xHigh;
+highInput.addEventListener( "change", () => 
+	{
+		xHigh = parseInt( highInput.value );
+		maxVals = xHigh - xLow + 1;
+		updateLayoutFlag = true;
+
+		console.log( "High: ", xHigh, ", Low: ", xLow );
+	}
+);
+
+
 
 window.addEventListener( "load", async ( event ) => {
 	bufferDataArea = document.getElementById( "bufferDataArea" );
@@ -23,6 +154,7 @@ window.addEventListener( "load", async ( event ) => {
 	if( "serial" in navigator )
 	{
 		bufferDataArea.value = "Serial API found!";
+		initPlots();
 	}
 	else
 	{
@@ -30,6 +162,20 @@ window.addEventListener( "load", async ( event ) => {
 		connectBtn.onclick = () => { channelDataArea.value = "Can't connect to serial ports. Serial API not found."; };
 	}
 } );
+
+function initPlots()
+{
+	connectBtn = document.getElementById( "deviceConnect" );
+	connectBtn.onclick = connect;
+
+
+	analogScope = document.getElementById( "analogScope" );
+	digitalScope = document.getElementById( "digitalScope" );
+
+
+	Plotly.newPlot( analogScope, analogData, analogLayout, analogConfig );
+	Plotly.newPlot( digitalScope, digitalData, digitalLayout, digitalConfig );
+}
 
 async function connect()
 {
@@ -60,7 +206,7 @@ async function connect()
 	collectionCount = 0;
 	
 	readLoop();
-	intervalID = setInterval( plotPoints, 250 );
+	intervalID = setInterval( plotPoints, interval );
 }
 
 async function disconnect()
@@ -77,6 +223,8 @@ async function disconnect()
 
 	connectBtn.onclick = connect;
 	connectBtn.value = "Connect";
+
+	clearInterval( intervalID );
 }
 
 
@@ -90,108 +238,47 @@ async function readLoop()
 		try
 		{
 			const{ value, done } = await reader.read();
-			console.log( typeof value, typeof done );
 
 			if( value )
 			{
 				buffer += value;
 
-				bufferDataArea.value = "Samples Ready: " + ( buffer.split( "\n" ).length ) + "\n";
-				bufferDataArea.value += buffer;
+				// bufferDataArea.value = "Samples Ready: " + ( buffer.split( "\n" ).length ) + "\n";
+				// bufferDataArea.value += buffer;
 
 				if( buffer.includes( "\n" ) )
 				{
-					/*
-					let idx = buffer.indexOf( "\n" );
-					values = buffer.substring( 0, idx ).split( " " );
-					buffer = buffer.substring( idx + 1 );
-
-					plotDataArea.value = "";
-					for( i = 0; i < values.length; i++ )
-					{
-						values[ i ] = 5 * parseFloat( values[ i ] ) / 1023;
-						plotDataArea.value += values[ i ] + " ";
-					}
-					channelDataArea.value = "Channels: " + values.length;
-
-					if( values.length !== numChannels )
-					{
-						console.log( values.length + " !== " + numChannels, "'" + value + "'" );
-					}
-
-					plotPoints( values );
-					*/
-
 					let bufferLines = buffer.split( "\n" );
-					let currLine, idx;
-					plotDataArea.value = "";
-					for( i = 0, max = ( bufferLines.length - 1 ) < 1000 ? ( bufferLines.length - 1 ) : 100; i < max; i++ )
+					// plotDataArea.value = "";
+					for( i = 0, max = bufferLines.length - 1; i < max; i++ )
 					{
-						currLine = bufferLines[ i ];
-
-						// We can remove this ONLY if we know the exact format of the data.
-						// If we change to an exact compression (e.g., one char per data point),
-						// then we can change this function call to a static value or replace it
-						// in the substring call with a static value.
-						idx = currLine.indexOf( "\n" );	
-
-						/*
-						values = currLine.split( " " );
-
-						let temp;
-						for( j = 0, numVals = values.length; j < numVals; j++ )
+						if( bufferLines[ i ].length !== 8 )
 						{
-							// for( let idx = 0; idx < values[ j ].length; idx++ )
-							// 	plotDataArea.value += "( " + values[ j ][ idx ] + ", " + values[ j ].charCodeAt( idx ) + " ) ";
-							// temp = parseFloat( values[ j ] );
-							// temp = values[ j ].charCodeAt( 0 );
-							temp = parseInt( values[ j ], 16 )
-							if( isNaN( temp ) )
-								continue;
-
-							if( conversionFlag )
-								values[ j ] = 5 * temp / 255;
-							else
-								values[ j ] = temp;
-
-							
+							console.log( bufferLines[ i ] );
+							continue;
 						}
-						*/
-						// input = parseInt( currLine.substring( 0, 8 ), 16 );
 
-						values[ 0  ] = 5 * parseInt( currLine.substring( 0, 2 ), 16 ) / 255;
-						values[ 1  ] = 5 * parseInt( currLine.substring( 2, 4 ), 16 ) / 255;
-						// values[ 0 ] = 5 * ( ( input >> 6 ) & 0xff ) / 255;
-						// values[ 1 ] = 5 * ( ( input >> 4 ) & 0xff ) / 255;
+						values[ 0 ] = 5 * parseInt( bufferLines[ i ].substring( 0, 2 ), 16 ) / 255;
+						values[ 1 ] = 5 * parseInt( bufferLines[ i ].substring( 2, 4 ), 16 ) / 255;
 
-						// digitalVals = parseInt( currLine.substring( 4, 8 ), 16 );
+						if( isNaN( values[ 0 ] ) || isNaN( values[ 1 ] ) )
+							continue;
 
-						for( j = 0; j < ( numChannels - 2 ); j++ )
+						// plotDataArea.value += values[ 0 ] + " " + values[ 1 ] + "\n";
+
+						digitalVals = parseInt( bufferLines[ i ].substring( 4, 8 ), 16 );
+
+						if( isNaN( digitalVals ) )
+							continue;
+
+						for( j = 0; j < numDigitalChannels; j++ )
 						{
-							// values[ 2 + j ] = ( digitalVals & ( 0x800 >> j ) ) ? 5 : 0; 
-							values[ 2 + j ] = 0;
+							values[ 2 + j ] = ( digitalVals & ( 0x800 >> j ) ) ? 1 : 0; 
+							// values[ 2 + j ] = 0;
 						}
-						// values[ 2  ] = ( digitalVals & 0x8000 ) ? 5 : 0;
-						// values[ 3  ] = ( digitalVals & 0x4000 ) ? 5 : 0;
-						// values[ 4  ] = ( digitalVals & 0x2000 ) ? 5 : 0;
-						// values[ 5  ] = ( digitalVals & 0x1000 ) ? 5 : 0;
-						// values[ 6  ] = ( digitalVals & 0x0800 ) ? 5 : 0;
-						// values[ 7  ] = ( digitalVals & 0x0400 ) ? 5 : 0;
-						// values[ 8  ] = ( digitalVals & 0x0200 ) ? 5 : 0;
-						// values[ 9  ] = ( digitalVals & 0x0100 ) ? 5 : 0;
-						// values[ 10 ] = ( digitalVals & 0x0080 ) ? 5 : 0;
-						// values[ 11 ] = ( digitalVals & 0x0040 ) ? 5 : 0;
-						// values[ 12 ] = ( digitalVals & 0x0020 ) ? 5 : 0;
-						// values[ 13 ] = ( digitalVals & 0x0010 ) ? 5 : 0;
-						// values[ 14 ] = ( digitalVals & 0x0008 ) ? 5 : 0;
-						// values[ 15 ] = ( digitalVals & 0x0004 ) ? 5 : 0;
-						// values[ 16 ] = ( digitalVals & 0x0002 ) ? 5 : 0;
-						// values[ 17 ] = ( digitalVals & 0x0001 ) ? 5 : 0;
-						plotDataArea.value += values[ 0 ] + " " + values[ 1 ] + "\n";
 
 						if( collectionCount > collectionCountBuffer )
 						{
-							// numDataPointsCollected += values.length;
 							numDataPointsCollected += 2;
 							elapsedTime = performance.now() - startTime;
 						}
@@ -205,28 +292,33 @@ async function readLoop()
 							collectionCount++;
 						}
 
-						channelDataArea.value =   "Channels:              " + values.length + 
-												"\nElapsed Time:          " + ( elapsedTime / 1000 ).toFixed( 2 ) + " seconds" + 
-												"\nData Points Collected: " + numDataPointsCollected + 
-												"\nDPS:                   " + ( numDataPointsCollected / ( elapsedTime / 1000 ) ).toFixed( 2 ) + " Sps";
+						// if( elapsedTime > 5000 )
+						// {
+						// 	startTime = performance.now();
+						// 	elapsedTime = 0;
+						// 	numDataPointsCollected = 0;
+						// }
 
-						if( values.length !== numChannels )
+						// channelDataArea.value =   "Channels:              " + values.length + 
+						// 						"\nElapsed Time:          " + ( elapsedTime / 1000 ).toFixed( 2 ) + " seconds" + 
+						// 						"\nData Points Collected: " + numDataPointsCollected + 
+						// 						"\nDPS:                   " + ( numDataPointsCollected / ( elapsedTime / 1000 ) ).toFixed( 2 ) + " Sps";
+
+						if( values.length !== numAnalogChannels )
 						{
 							// console.log( values.length + " !== " + numChannels, "'" + values + "'" );
 						}
 
-						for( j = 0; j < numChannels; j++ )
+						for( j = 0; j < numAnalogChannels; j++ )
 						{
-							if( values.length === numChannels )
-							{
-								data[ j ][ 'y' ][ index ] = values[ j ] === undefined || isNaN( values[ j ] ) ? 0 : values[ j ];
-								data[ j ][ 'x' ][ index ] = index;
-							}
-							else
-							{
-								data[ j ][ 'y' ][ index ] = undefined;
-								data[ j ][ 'x' ][ index ] = undefined;
-							}
+							analogData[ j ][ 'y' ][ index ] = values[ j ] === undefined || isNaN( values[ j ] ) ? undefined : values[ j ];
+							analogData[ j ][ 'x' ][ index ] = index;
+						}
+
+						for( j = 0; j < numDigitalChannels; j++ )
+						{
+							digitalData[ j ][ 'y' ][ index ] = values[ 2 + j ] === undefined || isNaN( values[ 2 + j ] ) ? undefined : values[ 2 + j ];
+							digitalData[ j ][ 'x' ][ index ] = index;
 						}
 
 						index = ( index + 1 ) % maxVals;
@@ -259,15 +351,15 @@ function plotPoints()
 	let i, j;
 
 	let numClear = ( maxVals * 0.02 ) < 1 ? 1 : ( maxVals * 0.02 );
-	for( i = 0; i < numChannels; i++ )
+	for( i = 0; i < numAnalogChannels; i++ )
 		for( j = 1; j <= numClear; j++  )
-			data[ i ][ 'x' ][ ( index + j ) % maxVals ] = undefined;
+			analogData[ i ][ 'x' ][ ( index + j ) % maxVals ] = undefined;
 
 
 
-	Plotly.animate( TESTER,
+	Plotly.animate( analogScope,
 		{
-			data: data
+			data: analogData
 		},
 		{
 			transition: {
@@ -279,6 +371,38 @@ function plotPoints()
 			}
 		}
 	);
+
+	if( intervalCnt >= digitalUpdateFreq )
+	{
+		for( i = 0; i < numDigitalChannels; i++ )
+			for( j = 1; j <= numClear; j++ )
+				digitalData[ i ][ 'x' ][ ( index + j ) % maxVals ] = undefined;
+
+		Plotly.animate( digitalScope,
+			{
+				data: digitalData
+			},
+			{
+				transition: {
+					duration: 0,
+					easing: 'cubic-in-out'
+				},
+				frame: {
+					duration: 0
+				}
+			} 
+		);
+
+		intervalCnt = 0;
+	}
+
+	intervalCnt++;
+
+
+	channelDataArea.value =   "Channels:              " + numAnalogChannels + " analog, " + numDigitalChannels + " digital" + 
+							"\nElapsed Time:          " + ( elapsedTime / 1000 ).toFixed( 2 ) + " seconds" + 
+							"\nData Points Collected: " + numDataPointsCollected + 
+							"\nDPS:                   " + ( numDataPointsCollected / ( elapsedTime / 1000 ) ).toFixed( 2 ) + " Sps";
 
 	// let data_update = { data: data };
 	// let layout_update = { 
@@ -293,7 +417,7 @@ function plotPoints()
 		updateLayoutFlag = false;
 
 		Plotly.relayout(
-			TESTER,
+			analogScope,
 			{
 				'xaxis.range': [ xLow, xHigh ],
 				'yaxis.range': [ yLow, yHigh ]
@@ -303,81 +427,8 @@ function plotPoints()
 }
 
 
-var interval = 125;
-var numVals = 0;
-var maxVals = 10000 + 1;
-
-var xHigh = maxVals - 1, xLow = 0;
-var yHigh = 5, yLow = 0;
-let xrange = [ xLow, xHigh ];
-let yrange = [ yLow, yHigh ];
-let y_tickvals = [ 0, 1, 2, 3, 4, 5 ]
-
-// Define whether input needs to be converted
-let conversionFlag = true;
-
-let index = 0;
-let numChannels = 10;
-let data = [];
-for( let idx = 0; idx < numChannels; idx++ )
-{
-	data.push( { y: [], x: [] } );
-}
-
-let layout = {
-	'margin': { t: 0 },
-	xaxis: {
-		title: "Sample",
-		showgrid: true,
-		range: xrange,
-		automargin: true
-	},
-	yaxis: {
-		title: "Value",
-		showgrid: true,
-		range: yrange,
-		tickvals: y_tickvals,
-		automargin: true		// Required to fit the top tick mark on the plot if it's equal to the maximum y-axis value.
-	}
-};
-
-let config = {
-	staticPlot: true,	// Remove hover icons.
-	responsive: true
-};
-
-TESTER = document.getElementById('tester');
-Plotly.newPlot( TESTER, data, layout, config );
-
-var updateLayoutFlag = true;
 
 
-var lowInput = document.getElementById( "low" );
-lowInput.value = xLow;
-lowInput.addEventListener( "change", () => 
-	{
-		xLow = parseInt( lowInput.value );
-		maxVals = xHigh - xLow + 1;
-		updateLayoutFlag = true;
-
-		console.log( "High: ", xHigh, ", Low: ", xLow )
-	} 
-);
-
-var highInput = document.getElementById( "high" );
-highInput.value = xHigh;
-highInput.addEventListener( "change", () => 
-	{
-		xHigh = parseInt( highInput.value );
-		maxVals = xHigh - xLow + 1;
-		updateLayoutFlag = true;
-
-		console.log( "High: ", xHigh, ", Low: ", xLow );
-	}
-);
-
-
-// setInterval( randomizerCircular, interval );
 
 
 function randomizerCircular()

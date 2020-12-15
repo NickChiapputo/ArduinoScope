@@ -14,34 +14,59 @@
 
 
 		<!-- Page Styles -->
-			<!-- General -->
+		<link rel="stylesheet" href="style.css">
 	</head>
 	
 
 	<body>		
-		<input id="deviceConnect" type="button" value="Connect" />
+		<!-- Port Selection Button -->
+		<input id="deviceConnect" style="margin-bottom: 10px" type="button" value="Connect" />
 
-		<div id="tester" style="width:50vw;height:50vh; margin-top: 20px;"></div>
+
+		<!-- Plotting Divs -->
+		<div class="container" style="">
+			<div id="analogScope" class="scopeDiv" style="background: red;"></div>
+
+			<div id="digitalScope" class="scopeDiv" style="margin-left: 2vw; background: green;"></div>
+		</div>
 	
-		<input id="low" type="number" value="0">
-		<input id="high" type="number" value="100"><br />
 
-		<div>
-			<h3 style="display: inline-block; width: 45vw; margin: 20px 0 0 0;"> Buffer Data </h3>
-			<h3 style="display: inline-block; width: 45vw; margin: 20px 0 0 3vw;"> Parsed Data </h3>
+		<!-- Plot Control Inputs -->
+		<div class="container" style="margin-top: 10px; margin-bottom: 10px">
+			<input id="low" type="number" value="0">
+			<input id="high" type="number" value="100">
+			<input id="startSound" style="margin-left: 20px;" type="button" value="Play" />
+			<input id="stopSound" type="button" value="Stop" />
+			<input id="frequencyChange" type="number" min="0" max="10000" value="440">
 		</div>
 
-		<textarea id="bufferDataArea" style="width: 44vw; margin: 10px 0 0 0;" rows="10"  readonly>
-		</textarea>
 
-		<textarea id="plotDataArea" style="width: 45vw; margin: 10px 0 0 3vw;" rows="10"  readonly>
-		</textarea>
+		<!-- Text Area Headers -->
+		<div class="container" style="">
+			<h3 class="halfWidthArea" style="margin-left: 1vw"> Buffer Data </h3>
+			<h3 class="halfWidthArea" style="margin-left: 2vw"> Parsed Data </h3>
+		</div>
 
-		<h3 style="display: inline-block; width: 95vw; text-align: center; margin: 30px 0 0 0;">Channel Data</h3>
-		<textarea id="channelDataArea" style="width: 94vw; margin: 10px 0 0 0;" rows="5" readonly>
-		</textarea>
+
+		<!-- Output Text Areaas -->
+		<div class="container" style="">
+			<textarea id="bufferDataArea" class="halfWidthArea" style="" rows="10"  readonly>
+			</textarea>
+
+			<textarea id="plotDataArea" class="halfWidthArea" style="margin-left: 2vw;" rows="10"  readonly>
+			</textarea>
+		</div>
+
+
+		<!-- Data Analytics Logging -->
+		<h3 style="display: inline-block; width: 99vw; text-align: center; margin: 30px 0 0 0;">Channel Data</h3>
+		<div class="container" style="">
+			<textarea id="channelDataArea" class="fullWidthArea" rows="7" readonly>
+			</textarea>
+		</div>
 	</body>
 
 
+	<!-- Load Script -->
 	<script src="main.js"></script>
 </html>

@@ -12,6 +12,7 @@ uint16_t logic;
 uint8_t adcHigh = 0;
 uint8_t dataReady = 0;
 
+uint16_t output;
 
 
 /**** Define channel select variables ****/
@@ -86,7 +87,7 @@ void initADC()
 	// Setup the ADCSRA register.
 	sbi( ADCSRA, ADEN );	// Enable ADC.
 	sbi( ADCSRA, ADSC );	// Start Conversion.
-	cbi( ADCSRA, ADATE );	// Enable Auto-Triggering.
+	cbi( ADCSRA, ADATE );	// Disable Auto-Triggering.
 	sbi( ADCSRA, ADIE );	// Enable ADC Interrupt.
 	cbi( ADCSRA, ADPS2 );	// Clear ADC Prescalar bis.
 	cbi( ADCSRA, ADPS1 );	// '' '' 
@@ -139,6 +140,13 @@ void initPins()
 	DDRC &= ~CMASK;	
 	DDRD &= ~DMASK;
 	DDRB &= ~BMASK;
+
+	// PINC = 0x00;
+	// PORTC = 0x00;
+	// PIND = 0x00;
+	// PIND = 0x00;
+	// PINB = 0x00;
+	// PORTB = 0x00;
 }
 
 
@@ -168,13 +176,15 @@ void loop()
 
 
 		// Print out the data in hex format.
-		Serial.write( toHex[ ( adcHigh >> 4 ) ] );
-		Serial.write( toHex[ adcHigh & 0x0f ] );
+		// Serial.write( toHex[ ( adcHigh >> 4 ) ] );
+		// Serial.write( toHex[ adcHigh & 0x0f ] );
+
 		// Serial.write( 32 );
 		// Serial.print( adcHigh, HEX );
 		// Serial.write( 32 );
+
 		// Serial.write( adcHigh );
-		sbi( ADCSRA, ADSC );	// Start Conversion.
+
 
 
 		// If we did not just sample the last channel,
@@ -182,6 +192,13 @@ void loop()
 		// Otherwise print newline to show end of data.
 		if( currentChannel == 0 )
 		{
+			// output = ( output & 0xff00 ) | adcHigh;
+
+			Serial.write( toHex[ ( output >> 12 ) & 0x000f ] );
+			Serial.write( toHex[ ( output >>  8 ) & 0x000f ] );
+			Serial.write( toHex[ ( output >>  4 ) & 0x000f ] );
+			Serial.write( toHex[ ( output       ) & 0x000f ] );
+
 			// Serial.write( 32 );
 			logic = 0;
 	        logic |= (PINB & BMASK );             //read digital pins 8-13
@@ -206,8 +223,13 @@ void loop()
 
 			Serial.write( 10 );
 		}
+		// else
+		// {
+		// 	output = adcHigh << 8;
+		// }
 
 		dataReady = 0;
+		sbi( ADCSRA, ADSC );	// Start Conversion.
 	}
 }
 
@@ -217,6 +239,11 @@ ISR( ADC_vect )
 	// Read from the ADC data register.
 	// Reading from ADCH triggers next conversion.
 	adcHigh = ADCH;
+
+	if( currentChannel )
+		output = ( output & 0xff00 ) | adcHigh;
+	else
+		output = adcHigh << 8;
 
 	// Set the flag high to trigger output logging.
 	dataReady = 1;

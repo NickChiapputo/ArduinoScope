@@ -141,12 +141,13 @@ void initPins()
 	DDRD &= ~DMASK;
 	DDRB &= ~BMASK;
 
-	// PINC = 0x00;
-	// PORTC = 0x00;
-	// PIND = 0x00;
-	// PIND = 0x00;
-	// PINB = 0x00;
-	// PORTB = 0x00;
+	PINC = 0x00;
+	PORTC = 0x00;
+	PIND = 0x00;
+	PIND = 0x00;
+	PINB = 0x00;
+	PORTB = 0x00;
+	digitalWrite( A2, HIGH );
 }
 
 
@@ -201,9 +202,13 @@ void loop()
 
 			// Serial.write( 32 );
 			logic = 0;
-	        logic |= (PINB & BMASK );             //read digital pins 8-13
-	        logic |= (PIND & DMASK ) << 4;        //read digital pins 2-7 mask and shift then place
+	        logic |= (PINB & BMASK ) << 6;		//read digital pins 8-13
+	        logic |= (PIND & DMASK ) >> 2;        //read digital pins 2-7 mask and shift then place
 	        logic |= (PINC & CMASK ) << 10;      //read analog2-5 pins as logic input mask and shift then place
+	        
+	        // logic |= (PINB & BMASK );             //read digital pins 8-13
+	        // logic |= (PIND & DMASK ) << 4;        //read digital pins 2-7 mask and shift then place
+	        // logic |= (PINC & CMASK ) << 10;      //read analog2-5 pins as logic input mask and shift then place
 	        
 	        // Serial.write( logic >> 8 );
 	        // Serial.write( logic );

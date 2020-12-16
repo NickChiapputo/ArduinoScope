@@ -30,9 +30,9 @@ var startTime				= undefined,
 
 // Plotting
 var intervalID 			= undefined,
-	interval 			= 20,
+	interval 			= 40,
 	intervalCnt			= 0,
-	digitalUpdateFreq	= 50,
+	digitalUpdateFreq	= 25,
 	numVals 			= 0,
 	maxVals 			= 10000 + 1,
 	xHigh 				= maxVals - 1,
@@ -51,72 +51,6 @@ var	conversionFlag 		= true,
 	numDigitalChannels	= 16,
 	analogData 			= [],
 	digitalData			= [];
-
-for( let idx = 0; idx < numAnalogChannels; idx++ )
-	analogData.push( { y: [], x: [] } );
-digitalData.push( { y: [], x: [], type: "scatter", fill: "tozeroy" } )
-for( let idx = 1; idx < numDigitalChannels; idx++ )
-	digitalData.push( { y: [], x: [], yaxis: ( "y" + idx ), type: "scatter", fill: "tozeroy" } );
-
-var analogLayout = {
-	'margin': { 
-		t: 0,
-		// l: 0,
-		// r: 0,
-		// b: 0,
-		autoexpand: false 
-	},
-	// 'autosize': false,
-	xaxis: {
-		title: "Sample",
-		showgrid: true,
-		range: xrange,
-		automargin: true
-	},
-	yaxis: {
-		title: "Value",
-		showgrid: true,
-		range: yrange,
-		autorange: false,
-		tickvals: y_tickvals,
-		automargin: true		// Required to fit the top tick mark on the plot if it's equal to the maximum y-axis value.
-	}
-};
-
-var digitalLayout = { 
-	legend: {
-		traceorder: 'reversed'
-	},
-	// 'autosize': false, 
-	xaxis: { 
-		range: [0, maxVals] 
-	} 
-};
-for( let i = 0; i < numDigitalChannels; i++ )
-{
-	digitalLayout[ 'yaxis' + ( i == 0 ? '' : ( i + 1 ) ) ] = 
-	{
-		range: [ 0, 1.2 ],
-		domain: [ i * ( 1 / numDigitalChannels ), ( i + 1 ) * ( 1 / numDigitalChannels ) ],
-		visible: false,
-		autorange: false
-	}
-}
-console.log( digitalLayout );
-
-var analogConfig = {
-	staticPlot: true,	// Remove hover icons.
-	// responsive: true
-};
-
-var digitalConfig = {
-	staticPlot: true,
-	// responsive: true
-};
-
-var analogScope, digitalScope;
-
-var updateLayoutFlag = true;
 
 
 var lowInput = document.getElementById( "low" );
@@ -144,11 +78,178 @@ highInput.addEventListener( "change", () =>
 );
 
 
+let colors = 
+	[ 
+		"#445C56",	// Feldgrau
+		"#C1E364",	// June Bud
+		"#866BD1",	// Medium Purple
+		"#B03C57",	// Amaranth Purple
+		"#5C6B31",	// Dark Olive Green
+		"#93B8B0",	// Opal
+		"#AD5E6F",	// Rose Dust
+		"#AE97E6",	// Maximum Blue Purple
+		"#4813CF",	// Medium Blue
+		"#A84C60",	// China Rose
+		"#3ABA85",	// Ocean Green
+		"#383275",	// St Patricks Blue
+		"#FAB1D0",	// Nadeshiko Pink
+		"#94345C",	// Quinacridone Magenta
+		"#2E1EE3",	// Blue
+		"#7FABAD",	// Cadet Blue
+	];
+let tickTexts = 
+	[
+		"2",
+		"3",
+		"4",
+		"5",
+		"6",
+		"7",
+		"8",
+		"9",
+		"10",
+		"11",
+		"12",
+		"13",
+		"A2",
+		"A3",
+		"A4",
+		"A5",
+	];
+let bgColor = "#232323";
+let fgColor = "#e6e6e6";
+
+
+for( let idx = 0; idx < numAnalogChannels; idx++ )
+	analogData.push( { y: [ 0 ], x: [ undefined ] } );
+
+digitalData.push( { y: [ 0 ], x: [ undefined ], type: "scatter", fill: "tozeroy" } );
+for( let idx = 1; idx < numDigitalChannels; idx++ )
+	digitalData.push( { 
+		y: [ 0 ], 
+		x: [ undefined ], 
+		yaxis: ( "y" + ( idx + 1 ) ), 
+		type: "scatter", 
+		fill: "tozeroy",
+		marker: {
+			color: colors[ idx ]
+		}
+	} );
+
+var analogLayout = {
+	'margin': { 
+		t: 20,
+		b: 20,
+		l: 20
+	},
+	xaxis: {
+		// title: "Sample",
+		showgrid: true,
+		range: xrange,
+		automargin: true
+	},
+	yaxis: {
+		// title: "Value",
+		showgrid: true,
+		range: yrange,
+		autorange: false,
+		tickvals: y_tickvals,
+		automargin: true		// Required to fit the top tick mark on the plot if it's equal to the maximum y-axis value.
+	},
+	legend: {
+		traceorder: 'reversed',
+		font: {
+			color: fgColor
+		}
+	},
+
+	"paper_bgcolor": "#232323",
+	"plot_bgcolor": "#232323"
+};
+
+
+var digitalLayout = { 
+	'margin': { 
+		t: 5,
+		b: 20,
+		l: 40
+	},
+	// annotations: digitalAnnotations,
+	legend: {
+		// traceorder: 'reversed',
+		font: {
+			color: fgColor
+		}
+	},
+	xaxis: { 
+		range: [0, maxVals] 
+	},
+
+	"paper_bgcolor": bgColor,
+	"plot_bgcolor": bgColor,
+};
+
+
+for( let idx = 0; idx < numDigitalChannels; idx++ )
+{
+	digitalLayout[ 'yaxis' + ( idx == 0 ? '' : ( idx + 1 ) ) ] = 
+	{
+		range: [ 0, 1.2 ],
+		domain: [ 1 - ( ( idx + 1 ) * ( 1 / numDigitalChannels ) ), 1 - ( ( idx ) * ( 1 / numDigitalChannels ) ) ],
+		visible: true,
+		autorange: false,
+
+		tickmode: "array",
+		tickvals: [ 0 ],
+		// ticktext: [ "Trace " + idx ],
+		ticktext: [ tickTexts[ numDigitalChannels - idx - 1 ] ],
+		tickfont: {
+			color: fgColor
+		},
+		ticklen: 15,
+		tickcolor: colors[ idx ],
+
+		zeroline: false,
+	}
+}
+console.log( digitalLayout );
+console.log( digitalData );
+
+var analogConfig = {
+	staticPlot: true,	// Remove hover icons.
+	responsive: true
+};
+
+var digitalConfig = {
+	// staticPlot: true,
+	responsive: true
+};
+
+var analogScope, digitalScope;
+
+var updateLayoutFlag = true;
+
+
+// Sound Output
+var audioCtx = undefined, 
+	oscillator = undefined,
+	soundPlaying = false;
+
 
 window.addEventListener( "load", async ( event ) => {
 	bufferDataArea = document.getElementById( "bufferDataArea" );
 	plotDataArea = document.getElementById( "plotDataArea" );
 	channelDataArea = document.getElementById( "channelDataArea" );
+
+
+	// Create sound output options.
+	let startSoundBtn = document.getElementById( "startSound" );
+	let stopSoundBtn = document.getElementById( "stopSound" );
+	let frequencyChange = document.getElementById( "frequencyChange" );
+
+	startSoundBtn.addEventListener( "click", playSound );
+	stopSoundBtn.addEventListener( "click", stopSound );
+	frequencyChange.addEventListener( "change", () => { changeFrequency( frequencyChange.value ); } );
 
 
 	if( "serial" in navigator )
@@ -162,6 +263,39 @@ window.addEventListener( "load", async ( event ) => {
 		connectBtn.onclick = () => { channelDataArea.value = "Can't connect to serial ports. Serial API not found."; };
 	}
 } );
+
+
+function playSound()
+{
+	if( soundPlaying )
+		oscillator.stop();
+	soundPlaying = true;
+
+	// create web audio api context
+	audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+	// create Oscillator node
+	oscillator = audioCtx.createOscillator();
+
+	oscillator.type = 'square';
+	oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // value in hertz
+	oscillator.connect(audioCtx.destination);
+	oscillator.start();
+}
+
+
+function changeFrequency( f )
+{
+	oscillator.frequency.setValueAtTime( f, audioCtx.currentTime );
+}
+
+
+function stopSound()
+{
+	oscillator.stop();
+	soundPlaying = false;
+}
+
 
 function initPlots()
 {
@@ -243,18 +377,18 @@ async function readLoop()
 			{
 				buffer += value;
 
-				// bufferDataArea.value = "Samples Ready: " + ( buffer.split( "\n" ).length ) + "\n";
-				// bufferDataArea.value += buffer;
+				bufferDataArea.value = "Samples Ready: " + ( buffer.split( "\n" ).length ) + "\n";
+				bufferDataArea.value += buffer;
 
 				if( buffer.includes( "\n" ) )
 				{
 					let bufferLines = buffer.split( "\n" );
-					// plotDataArea.value = "";
+					plotDataArea.value = "";
 					for( i = 0, max = bufferLines.length - 1; i < max; i++ )
 					{
 						if( bufferLines[ i ].length !== 8 )
 						{
-							console.log( bufferLines[ i ] );
+							// console.log( bufferLines[ i ] );
 							continue;
 						}
 
@@ -264,18 +398,21 @@ async function readLoop()
 						if( isNaN( values[ 0 ] ) || isNaN( values[ 1 ] ) )
 							continue;
 
-						// plotDataArea.value += values[ 0 ] + " " + values[ 1 ] + "\n";
+						plotDataArea.value += values[ 0 ] + " " + values[ 1 ].toFixed( 2 ) + " ";
 
-						digitalVals = parseInt( bufferLines[ i ].substring( 4, 8 ), 16 );
+						let digitalVals = parseInt( bufferLines[ i ].substring( 4, 8 ), 16 );
 
-						if( isNaN( digitalVals ) )
-							continue;
+						plotDataArea.value += "- " + digitalVals + " - ";
 
 						for( j = 0; j < numDigitalChannels; j++ )
 						{
-							values[ 2 + j ] = ( digitalVals & ( 0x800 >> j ) ) ? 1 : 0; 
+							// let digitalVal = parseInt( bufferLines[ i ].substring( 4 + j, 4 + j + 1 ), 16 );
+							// values[ 2 + j ] = 
+							values[ 2 + j ] = ( digitalVals & ( 0x8000 >> j ) ) ? 1 : 0; 
+							plotDataArea.value += values[ 2 + j ] + " ";
 							// values[ 2 + j ] = 0;
 						}
+						plotDataArea.value += "\n";
 
 						if( collectionCount > collectionCountBuffer )
 						{
@@ -317,7 +454,7 @@ async function readLoop()
 
 						for( j = 0; j < numDigitalChannels; j++ )
 						{
-							digitalData[ j ][ 'y' ][ index ] = values[ 2 + j ] === undefined || isNaN( values[ 2 + j ] ) ? undefined : values[ 2 + j ];
+							digitalData[ j ][ 'y' ][ index ] = values[ 2 + j ];
 							digitalData[ j ][ 'x' ][ index ] = index;
 						}
 

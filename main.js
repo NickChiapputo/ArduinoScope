@@ -198,7 +198,7 @@ function createFreezeEvents()
 		// Change the button text based on status.
 		if( frozenAnalog )
 		{
-			freezeAnalogBtn.value = "Unfreeze";
+			freezeAnalogBtn.value = "Unfreeze Analog";
 
 			if( frozenDigital )
 			{
@@ -208,7 +208,7 @@ function createFreezeEvents()
 		}
 		else 
 		{
-			freezeAnalogBtn.value = "Freeze";
+			freezeAnalogBtn.value = "Freeze Analog";
 			freezeBtnBothDigital.value = "Freeze Both";
 			freezeBtnBothAnalog.value = "Freeze Both";
 		}
@@ -224,7 +224,7 @@ function createFreezeEvents()
 		// Change the button text based on status.
 		if( frozenDigital )
 		{
-			freezeDigitalBtn.value = "Unfreeze";
+			freezeDigitalBtn.value = "Unfreeze Digital";
 
 			if( frozenAnalog )
 			{
@@ -234,7 +234,7 @@ function createFreezeEvents()
 		}
 		else 
 		{
-			freezeBtnDigital.value = "Freeze";
+			freezeBtnDigital.value = "Freeze Digital";
 			freezeBtnBothDigital.value = "Freeze Both";
 			freezeBtnBothAnalog.value = "Freeze Both";
 		}
@@ -247,12 +247,11 @@ function createFreezeEvents()
 		// Flip the frozen status.
 		if( !frozenDigital || !frozenAnalog )
 		{
-			console.log( "Freeze Both -- Analog" );
 			frozenDigital = true;
 			frozenAnalog = true;
 
-			freezeBtnDigital.value = "Unfreeze";
-			freezeAnalogBtn.value = "Unfreeze";
+			freezeBtnDigital.value = "Unfreeze Digital";
+			freezeAnalogBtn.value = "Unfreeze Analog";
 			freezeBtnBothDigital.value = "Unfreeze Both";
 			freezeBtnBothAnalog.value = "Unfreeze Both";
 		}
@@ -262,8 +261,8 @@ function createFreezeEvents()
 			frozenDigital = false;
 			frozenAnalog = false;
 
-			freezeBtnDigital.value = "Freeze";
-			freezeAnalogBtn.value = "Freeze";
+			freezeBtnDigital.value = "Freeze Digital";
+			freezeAnalogBtn.value = "Freeze Analog";
 			freezeBtnBothDigital.value = "Freeze Both";
 			freezeBtnBothAnalog.value = "Freeze Both";
 		}
@@ -280,8 +279,8 @@ function createFreezeEvents()
 			frozenDigital = true;
 			frozenAnalog = true;
 
-			freezeBtnDigital.value = "Unfreeze";
-			freezeAnalogBtn.value = "Unfreeze";
+			freezeBtnDigital.value = "Unfreeze Digital";
+			freezeAnalogBtn.value = "Unfreeze Analog";
 			freezeBtnBothDigital.value = "Unfreeze Both";
 			freezeBtnBothAnalog.value = "Unfreeze Both";
 		}
@@ -290,8 +289,8 @@ function createFreezeEvents()
 			frozenDigital = false;
 			frozenAnalog = false;
 
-			freezeBtnDigital.value = "Freeze";
-			freezeAnalogBtn.value = "Freeze";
+			freezeBtnDigital.value = "Freeze Digital";
+			freezeAnalogBtn.value = "Freeze Analog";
 			freezeBtnBothDigital.value = "Freeze Both";
 			freezeBtnBothAnalog.value = "Freeze Both";
 		}
@@ -572,19 +571,20 @@ function changeFrequency( f, isRight )
 {
 	let newFreq = Math.pow( 10, f );
 	
-	if( isRight && oscillatorRight !== undefined )
+	if( isRight )
 	{
-		oscillatorRight.frequency.setValueAtTime( newFreq, audioCtxRight.currentTime );
+		if( oscillatorRight !== undefined )
+			oscillatorRight.frequency.setValueAtTime( newFreq, audioCtxRight.currentTime );
 		document.getElementById( "frequencyChangeInputRight" ).value = newFreq.toFixed( 2 ).replace(/(\.0*|(?<=(\..*))0*)$/, '');
 		document.getElementById( "frequencyChangeSliderRight" ).value = f;
 	}
 	else
 	{
-		oscillatorLeft.frequency.setValueAtTime( newFreq, audioCtxLeft.currentTime );
+		if( oscillatorLeft !== undefined )
+			oscillatorLeft.frequency.setValueAtTime( newFreq, audioCtxLeft.currentTime );
 		document.getElementById( "frequencyChangeInputLeft" ).value = newFreq.toFixed( 2 ).replace(/(\.0*|(?<=(\..*))0*)$/, '');
 		document.getElementById( "frequencyChangeSliderLeft" ).value = f;
 	}
-
 }
 
 

@@ -34,7 +34,9 @@ var intervalID 			= undefined,
 	intervalCnt			= 0,
 	digitalUpdateFreq	= 25,
 	numVals 			= 0,
-	maxVals 			= 10000 + 1,
+	xMin 				= 0,
+	xMax 				= 10000,
+	maxVals 			= xMax + 1,	// Add +1 to show the last tick value
 	xHigh 				= maxVals - 1,
 	xLow 				= 0,
 	yHigh 				= 5,
@@ -54,26 +56,86 @@ var	conversionFlag 		= true,
 
 
 var lowInput = document.getElementById( "low" );
+var highInput = document.getElementById( "high" );
+var lowInputArea = document.getElementById( "lowVal" );
+var highInputArea = document.getElementById( "highVal" );
+lowInput.min = xLow;
+lowInput.max = xHigh;
 lowInput.value = xLow;
-lowInput.addEventListener( "change", () => 
+lowInputArea.value = xLow.toLocaleString( undefined, { maximumFractionDigits: 0 } );
+lowInput.addEventListener( "input", () => 
 	{
-		xLow = parseInt( lowInput.value );
+		let low = parseInt( lowInput.value ),
+			high = parseInt( highInput.value );
+
+		if( low < xMin )
+		{
+			lowInput.value = 0;
+			low = 0;
+		}
+
+		if( low >= xMax )
+		{
+			low = xMax - 1;
+			lowInput.value = low;
+		}
+
+		if( low > high )
+		{
+			highInput.value = low + 1;
+			xHigh = low;
+			highInputArea.value = xHigh.toLocaleString( undefined, { maximumFractionDigits: 0 } );
+		}
+
+		xLow = low;
 		maxVals = xHigh - xLow + 1;
 		updateLayoutFlag = true;
+		lowInputArea.value = xLow.toLocaleString( undefined, { minimumFractionDigits: 0 } );
 
-		console.log( "High: ", xHigh, ", Low: ", xLow )
+		console.log( "High: ", xHigh, ", Low: ", xLow );
+
+		updatePlotLayout();
 	} 
 );
 
-var highInput = document.getElementById( "high" );
+highInput.min = xLow;
+highInput.max = xHigh;
 highInput.value = xHigh;
-highInput.addEventListener( "change", () => 
+highInput.max = xMax;
+highInputArea.value = xHigh.toLocaleString( undefined, { maximumFractionDigits: 0 } );
+highInput.addEventListener( "input", () => 
 	{
-		xHigh = parseInt( highInput.value );
+		let low = parseInt( lowInput.value ),
+			high = parseInt( highInput.value );
+
+		if( high > xMax )
+		{
+			high = xMax;
+			highInput.value = high;
+		}
+
+		if( high <= xMin )
+		{
+			high = xMin + 1;
+			highInput.value = high;
+		}
+
+		if( high < low )
+		{
+			lowInput.value = high - 1;
+			xLow = high;
+			lowInputArea.value = xLow.toLocaleString( undefined, { minimumFractionDigits: 0 } );
+		}
+
+		xHigh = high;
 		maxVals = xHigh - xLow + 1;
 		updateLayoutFlag = true;
+		highInputArea.value = xHigh.toLocaleString( undefined, { minimumFractionDigits: 0 } );
+
 
 		console.log( "High: ", xHigh, ", Low: ", xLow );
+
+		updatePlotLayout();
 	}
 );
 
@@ -156,12 +218,13 @@ var analogLayout = {
 		tickvals: y_tickvals,
 		automargin: true		// Required to fit the top tick mark on the plot if it's equal to the maximum y-axis value.
 	},
-	legend: {
-		traceorder: 'reversed',
-		font: {
-			color: fgColor
-		}
-	},
+	// legend: {
+	// 	traceorder: 'reversed',
+	// 	font: {
+	// 		color: fgColor
+	// 	}
+	// },
+	'showlegend': 'false',
 
 	"paper_bgcolor": "#232323",
 	"plot_bgcolor": "#232323"
@@ -212,8 +275,7 @@ for( let idx = 0; idx < numDigitalChannels; idx++ )
 		zeroline: false,
 	}
 }
-console.log( digitalLayout );
-console.log( digitalData );
+
 
 var analogConfig = {
 	staticPlot: true,	// Remove hover icons.
@@ -236,25 +298,51 @@ var audioCtx = undefined,
 	soundPlaying = false;
 
 
+// Freeze/Unfreeze Plotting
+var frozen = false;
+
+
 window.addEventListener( "load", async ( event ) => {
-	bufferDataArea = document.getElementById( "bufferDataArea" );
-	plotDataArea = document.getElementById( "plotDataArea" );
+	// bufferDataArea = document.getElementById( "bufferDataArea" );
+	// plotDataArea = document.getElementById( "plotDataArea" );
 	channelDataArea = document.getElementById( "channelDataArea" );
 
 
 	// Create sound output options.
-	let startSoundBtn = document.getElementById( "startSound" );
-	let stopSoundBtn = document.getElementById( "stopSound" );
-	let frequencyChange = document.getElementById( "frequencyChange" );
+	let playSoundBtn = document.getElementById( "playSound" );
+	let frequencyChangeSlider = document.getElementById( "frequencyChangeSlider" );
+	let frequencyChangeInput = document.getElementById( "frequencyChangeInput" );
 
-	startSoundBtn.addEventListener( "click", playSound );
-	stopSoundBtn.addEventListener( "click", stopSound );
-	frequencyChange.addEventListener( "change", () => { changeFrequency( frequencyChange.value ); } );
+	// Add event listeners to sound options.
+	playSoundBtn.addEventListener( "click", () => { playSound( playSoundBtn ); } );
+	frequencyChangeSlider.addEventListener( "input", () => { changeFrequency( frequencyChangeSlider.value ); } );
+	frequencyChangeInput.addEventListener( "change", () => { changeFrequency( Math.log10( frequencyChangeInput.value ) ) } );
+
+	// Set default frequency.
+	frequencyChangeInput.value = 440;
+	frequencyChangeSlider.value = Math.log10( frequencyChangeInput.value );
+
+	let soundSelect = document.getElementById( "soundSelect" );
+	soundSelect.addEventListener( "change", () => { changeSoundType( soundSelect.options[ soundSelect.selectedIndex ].value ); } );
+
+
+	// Create freeze/unfreeze options.
+	let freezeBtn = document.getElementById( "freezeAnalogBtn" );
+	freezeBtn.addEventListener( "click", () => {
+		frozen = !frozen;
+
+		if( frozen )
+			freezeBtn.value = "Unfreeze";
+		else 
+			freezeBtn.value = "Freeze";
+
+		plotPoints();
+	} );
 
 
 	if( "serial" in navigator )
 	{
-		bufferDataArea.value = "Serial API found!";
+		channelDataArea.value = "Serial API found!";
 		initPlots();
 	}
 	else
@@ -265,28 +353,57 @@ window.addEventListener( "load", async ( event ) => {
 } );
 
 
-function playSound()
+function changeSoundType( type )
 {
-	if( soundPlaying )
-		oscillator.stop();
-	soundPlaying = true;
-
-	// create web audio api context
-	audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-	// create Oscillator node
-	oscillator = audioCtx.createOscillator();
-
-	oscillator.type = 'square';
-	oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // value in hertz
-	oscillator.connect(audioCtx.destination);
-	oscillator.start();
+	if( oscillator !== undefined )
+		oscillator.type = type;
 }
 
 
+function playSound( playSoundBtn )
+{
+	if( soundPlaying )
+	{
+		oscillator.stop();
+		playSoundBtn.value = "Play";
+	}
+	else
+	{
+		// create web audio api context
+		audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+		// create Oscillator node
+		oscillator = audioCtx.createOscillator();
+
+		// Create gain to control sound.
+		gain = audioCtx.createGain();
+
+		let soundSelet = document.getElementById( "soundSelect" );
+		oscillator.type = soundSelet.options[ soundSelet.selectedIndex ].value;
+		oscillator.frequency.setValueAtTime(Math.pow( 10, document.getElementById( "frequencyChangeSlider" ).value ), audioCtx.currentTime); // value in hertz
+		oscillator.connect(audioCtx.destination);
+		oscillator.start();
+
+		playSoundBtn.value = "Stop"; // ⏸︎
+	}
+
+	soundPlaying = !soundPlaying;
+}
+
+
+// Expect `f` to be log_10 of desired frequency.
 function changeFrequency( f )
 {
-	oscillator.frequency.setValueAtTime( f, audioCtx.currentTime );
+	let newFreq = Math.pow( 10, f );
+	
+	if( oscillator !== undefined )
+	{
+		oscillator.frequency.setValueAtTime( newFreq, audioCtx.currentTime );
+	}
+
+	// document.getElementById( "frequencyVal" ).value = newFreq.toLocaleString( undefined, { maximumFractionDigits: 2 } ) + " Hz";
+	document.getElementById( "frequencyChangeInput" ).value = newFreq.toFixed( 2 ).replace(/(\.0*|(?<=(\..*))0*)$/, '');
+	document.getElementById( "frequencyChangeSlider" ).value = f;
 }
 
 
@@ -340,7 +457,9 @@ async function connect()
 	collectionCount = 0;
 	
 	readLoop();
-	intervalID = setInterval( plotPoints, interval );
+	frozen = false;
+	document.getElementById( "freezeAnalogBtn" ).value = "Freeze";
+	intervalID = setInterval( () => { if( !frozen ) plotPoints(); }, interval );
 }
 
 async function disconnect()
@@ -377,13 +496,13 @@ async function readLoop()
 			{
 				buffer += value;
 
-				bufferDataArea.value = "Samples Ready: " + ( buffer.split( "\n" ).length ) + "\n";
-				bufferDataArea.value += buffer;
+				// bufferDataArea.value = "Samples Ready: " + ( buffer.split( "\n" ).length ) + "\n";
+				// bufferDataArea.value += buffer;
 
 				if( buffer.includes( "\n" ) )
 				{
 					let bufferLines = buffer.split( "\n" );
-					plotDataArea.value = "";
+					// plotDataArea.value = "";
 					for( i = 0, max = bufferLines.length - 1; i < max; i++ )
 					{
 						if( bufferLines[ i ].length !== 8 )
@@ -398,21 +517,21 @@ async function readLoop()
 						if( isNaN( values[ 0 ] ) || isNaN( values[ 1 ] ) )
 							continue;
 
-						plotDataArea.value += values[ 0 ] + " " + values[ 1 ].toFixed( 2 ) + " ";
+						// plotDataArea.value += values[ 0 ] + " " + values[ 1 ].toFixed( 2 ) + " ";
 
 						let digitalVals = parseInt( bufferLines[ i ].substring( 4, 8 ), 16 );
 
-						plotDataArea.value += "- " + digitalVals + " - ";
+						// plotDataArea.value += "- " + digitalVals + " - ";
 
 						for( j = 0; j < numDigitalChannels; j++ )
 						{
 							// let digitalVal = parseInt( bufferLines[ i ].substring( 4 + j, 4 + j + 1 ), 16 );
 							// values[ 2 + j ] = 
 							values[ 2 + j ] = ( digitalVals & ( 0x8000 >> j ) ) ? 1 : 0; 
-							plotDataArea.value += values[ 2 + j ] + " ";
+							// plotDataArea.value += values[ 2 + j ] + " ";
 							// values[ 2 + j ] = 0;
 						}
-						plotDataArea.value += "\n";
+						// plotDataArea.value += "\n";
 
 						if( collectionCount > collectionCountBuffer )
 						{
@@ -480,6 +599,20 @@ async function readLoop()
 			break;
 		}
 	}
+}
+
+
+function updatePlotLayout()
+{
+	Plotly.relayout(
+		analogScope,
+		{
+			'xaxis.range': [ xLow, xHigh ],
+			'yaxis.range': [ yLow, yHigh ]
+		}
+	);
+
+	Plotly.relayout( digitalScope, { 'xaxis.range': [ xLow, xHigh ] } );
 }
 
 
@@ -552,14 +685,7 @@ function plotPoints()
 	if( updateLayoutFlag )
 	{
 		updateLayoutFlag = false;
-
-		Plotly.relayout(
-			analogScope,
-			{
-				'xaxis.range': [ xLow, xHigh ],
-				'yaxis.range': [ yLow, yHigh ]
-			}
-		);
+		updatePlotLayout();
 	}
 }
 

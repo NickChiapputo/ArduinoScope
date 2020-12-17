@@ -24,21 +24,23 @@
 		<!-- Port Selection Button -->
 		<input id="deviceConnect" type="button" value="Connect Device" />
 
+		<!-- Download Script Button -->
+		<a href="arduino/scope/scope.ino" download="scope.ino">
+			<input id="downloadBtn" type="button" value="Download scope.ino">
+		</a>
+
 
 		<!-- Plotting Divs -->
 		<div class="container" style="">
-			<div id="analogScope" class="scopeDiv" style="background: red;"></div>
+			<div id="analogScope" class="scopeDiv" style="background: #232323;"></div>
 
-			<div id="digitalScope" class="scopeDiv" style="margin-left: 1vw; background: green;"></div>
+			<div id="digitalScope" class="scopeDiv" style="margin-left: 1vw; background: #232323;"></div>
 		</div>
 
 
 		<!-- Plot Control Inputs -->
 		<div class="container" style="margin-top: 10px; margin-bottom: 10px; display: inline-block;">
-			<!-- Horizontal Adjustment -->
-			<!-- <input id="low" type="number" value="0">
-			<input id="high" type="number" value="100"> -->
-
+			<!-- Analog Plot Controls -->
 			<div class="card first-card">
 				<!-- <legend style="margin-top: 10px; border: 1px black solid; margin-left: 1em; padding: 0.2em 0.8em; background-color: #232323; color: #e6e6e6">Plot Controls</legend> -->
 				<h2 class="card-title">Analog Plot Controls</h2>
@@ -51,7 +53,7 @@
 				</div>
 	
 				<div class="horizontal-range-label">
-					<label for="low">End Sample #</label>
+					<label for="high">End Sample #</label>
 					<input id="high" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="10000" />
 					<textarea id="highVal" class="range-slider-textarea" rows="1" cols="6"></textarea>
 				</div>
@@ -62,7 +64,7 @@
 						<input id="freezeAnalogBtn" style="" type="button" value="Freeze Analog" />
 					</div>
 					<div class="half-width-div">
-						<input id="freezeBothBtn" style="" type="button" value="Freeze Both" />
+						<input id="freezeBothBtnAnalog" style="" type="button" value="Freeze Both" />
 					</div>
 				</div>
 
@@ -75,7 +77,6 @@
 					<input id="low" value="0" min="0" max="10000" step="1" type="range" />
 					<input id="high" value="10000" min="0" max="10000" step="1" type="range" />
 				</div> -->
-			<!-- </fieldset> -->
 			</div>
 
 			<!-- Sound Output -->			
@@ -84,8 +85,8 @@
 
 				<!-- Select Sound Type -->
 				<div class="horizontal-range-label">
-					<label for="soundSelect">Waveform</label>
-					<select id="soundSelect">
+					<label for="soundSelectLeft">L. Waveform</label>
+					<select id="soundSelectLeft">
 						<option value="sine">Sine</option>
 						<option value="square" selected>Square</option>
 						<option value="sawtooth">Sawtooth</option>
@@ -95,29 +96,58 @@
 
 				<!-- Select Sound Frequency -->
 				<div class="horizontal-range-label">
-					<label for="frequencyChangeSlider">Frequency</label>
-					<input id="frequencyChangeSlider" class="horizontal-slider" type="range" min="0" max="4" step="0.001" value="Math.log10( 440 )" />
-					<!-- <textarea id="frequencyVal" class="range-slider-textarea" rows="1" cols="12"></textarea> -->
-					<input id="frequencyChangeInput" type="number" class="range-slider-textarea" min="0" max="10000" step="1" />
+					<label for="frequencyChangeSliderLeft">L. Frequency</label>
+					<input id="frequencyChangeSliderLeft" class="horizontal-slider" type="range" min="0" max="4" step="0.001" value="Math.log10( 440 )" />
+					<input id="frequencyChangeInputLeft" type="number" class="range-slider-textarea" min="0" max="10000" step="0.01" />
 				</div>
 
-				<input id="playSound" style="margin-left: 20px; width: 40px;" type="button" value="Play" />
+				<!-- Play Left Channel Sound -->
+				<div class="center-flex">
+					<input id="playSoundLeft" style="width: 100px;" type="button" value="Play" />
+				</div>
+
+				<!--  -->
+				<!--  -->
+				<hr />
+				<!-- Select Sound Type -->
+				<div class="horizontal-range-label" style="margin-top: 0;">
+					<label for="soundSelectRight">R. Waveform</label>
+					<select id="soundSelectRight">
+						<option value="sine">Sine</option>
+						<option value="square" selected>Square</option>
+						<option value="sawtooth">Sawtooth</option>
+						<option value="triangle">Triangle</option>
+					</select>
+				</div>
+
+				<!-- Select Sound Frequency -->
+				<div class="horizontal-range-label">
+					<label for="frequencyChangeSliderRight">R. Frequency</label>
+					<input id="frequencyChangeSliderRight" class="horizontal-slider" type="range" min="0" max="4" step="0.001" value="Math.log10( 440 )" />
+					<input id="frequencyChangeInputRight" type="number" class="range-slider-textarea" min="0" max="10000" step="0.01" />
+				</div>
+
+				<!-- Play Right Channel Sound -->
+				<div class="center-flex">
+					<input id="playSoundRight" style="width: 100px;" type="button" value="Play" />
+				</div>
 			</div>
 
+			<!-- Digital Plot Controls -->
 			<div class="card">
 				<h2 class="card-title">Digital Plot Controls</h2>
 
 				<!-- Horizontal Adjustment -->
 				<div class="horizontal-range-label">
-					<label for="low">Start Sample #</label>
-					<input id="low" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="0" />
-					<textarea id="lowVal" class="range-slider-textarea" rows="1" cols="6"></textarea>
+					<label for="lowDigital">Start Sample #</label>
+					<input id="lowDigital" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="0" />
+					<textarea id="lowValDigital" class="range-slider-textarea" rows="1" cols="6"></textarea>
 				</div>
 	
 				<div class="horizontal-range-label">
-					<label for="low">End Sample #</label>
-					<input id="high" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="10000" />
-					<textarea id="highVal" class="range-slider-textarea" rows="1" cols="6"></textarea>
+					<label for="highDigital">End Sample #</label>
+					<input id="highDigital" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="10000" />
+					<textarea id="highValDigital" class="range-slider-textarea" rows="1" cols="6"></textarea>
 				</div>
 
 				<!-- Freeze/Unfreeze Output -->
@@ -126,41 +156,17 @@
 						<input id="freezeDigitalBtn" style="" type="button" value="Freeze Digital" />
 					</div>
 					<div class="half-width-div">
-						<input id="freezeBothBtn" style="" type="button" value="Freeze Both" />
+						<input id="freezeBothBtnDigital" style="" type="button" value="Freeze Both" />
 					</div>
 				</div>
 			</div>
 
+			<!-- Logging Output -->
 			<div class="card">
 				<h2 class="card-title">Channel Data</h2>
 				<textarea id="channelDataArea" class="fullWidthCardArea" readonly></textarea>
 			</div>
 		</div>
-
-
-		<!-- Text Area Headers -->
-		<!-- <div class="container" style="">
-			<h3 class="halfWidthArea" style="margin-left: 1vw"> Buffer Data </h3>
-			<h3 class="halfWidthArea" style="margin-left: 2vw"> Parsed Data </h3>
-		</div> -->
-
-
-		<!-- Output Text Areaas -->
-		<!-- <div class="container" style="">
-			<textarea id="bufferDataArea" class="halfWidthArea" style="" rows="10"  readonly>
-			</textarea>
-
-			<textarea id="plotDataArea" class="halfWidthArea" style="margin-left: 2vw;" rows="10"  readonly>
-			</textarea>
-		</div> -->
-
-
-		<!-- Data Analytics Logging -->
-		<!-- <h3 style="display: inline-block; width: 99vw; text-align: center; margin: 30px 0 0 0;">Channel Data</h3>
-		<div class="container" style="">
-			<textarea id="channelDataArea" class="fullWidthArea" rows="7" readonly>
-			</textarea>
-		</div> -->
 	</body>
 
 

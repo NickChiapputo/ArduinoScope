@@ -25,8 +25,15 @@ textarea {
 
 #deviceConnect {
 	position: absolute;
-	width: 10vw;
+	width: 8vw;
 	left: 10px;
+	top: 10px;
+}
+
+#downloadBtn {
+	position: absolute;
+	width: 8vw;
+	left: calc( 10px + 8vw + 10px );
 	top: 10px;
 }
 
@@ -42,7 +49,13 @@ textarea {
 
 .horizontal-slider {
 	vertical-align: middle;
-	width: 9.5vw;
+	/*width: 9.5vw;*/
+
+	/* 	Subtract from full width of containing div.
+		Subtract 100px for width of label.
+		Subtract 65px for width of textarea value.
+	*/
+	width: calc( 97% - 100px - 65px );
 	background: #ffffff;
 }
 
@@ -57,19 +70,29 @@ textarea {
 }
 
 .horizontal-range-label label {
+	display: inline-block;
 	vertical-align: middle;	
-	width: 7vw;
+	width: 100px;
 }
 
 .range-slider-textarea {
 	border: none;
 	background-color: transparent;
 	padding: 0;
+	margin: 0;
 	resize: none;
 	vertical-align: middle;
 	/*text-align: right;*/
-	width: 7vw;
+	width: 65px;
 	/*background: red;*/
+}
+
+.center-flex {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 30px;
+	border: none;
 }
 
 fieldset {
@@ -134,8 +157,15 @@ fieldset {
 
 .card {
 	width: 24vw;
-	min-height: 150px;
-	height: 7.5vw;
+	height: calc( 80vh - 30px - 25vw );
+
+	/* Minimum Height is approximate height of elements in the sound box. */
+	min-height: 260px; 
+
+	/* 	Calculate height out of 80% of the window vertical height.
+		Substract 30px for title h1 height.
+		Subtract 25vw for scope div height.
+	*/
 
 	margin: 0 0 0 1vw;
 
@@ -211,19 +241,6 @@ input {
 
 input::-webkit-outer-spin-button {
 	-webkit-appearance: none;
-}
-
-input[ type="number" ], input[ type="password" ], input[ type="date" ], input[ type="datetime-local" ] {
-	-moz-appearance: textfield;
-	margin-bottom: 10px;
-	height: 20px;
-	border-radius: 4px;
-}
-
-input[ type="text" ] {
-	margin-bottom: 10px;
-	height: 20px;
-	border-radius: 4px;
 }
 
 select {

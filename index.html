@@ -29,6 +29,16 @@
 			<input id="downloadBtn" type="button" value="Download scope.ino">
 		</a>
 
+		<!-- Quick Start Button -->
+		<a href="arduino/scope/scope.ino" download="scope.ino">
+			<input id="quickStartBtn" type="button" value="Quick Start">
+		</a>
+
+		<!-- Documents Button -->
+		<a href="arduino/scope/scope.ino" download="scope.ino">
+			<input id="documentsBtn" type="button" value="Documents">
+		</a>
+
 
 		<!-- Plotting Divs -->
 		<div class="container" style="">
@@ -42,16 +52,16 @@
 		<div class="container" style="margin-top: 10px; margin-bottom: 10px; display: inline-block;">
 			<!-- Analog Plot Controls -->
 			<div class="card first-card">
-				<!-- <legend style="margin-top: 10px; border: 1px black solid; margin-left: 1em; padding: 0.2em 0.8em; background-color: #232323; color: #e6e6e6">Plot Controls</legend> -->
 				<h2 class="card-title">Analog Plot Controls</h2>
 
-				<!-- Horizontal Adjustment -->
+				<!-- X Min Adjustment Slider -->
 				<div class="horizontal-range-label">
 					<label for="low">Start Sample #</label>
 					<input id="low" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="0" />
 					<textarea id="lowVal" class="range-slider-textarea" rows="1" cols="6"></textarea>
 				</div>
 	
+				<!-- X Max Adjustment Slider -->
 				<div class="horizontal-range-label">
 					<label for="high">End Sample #</label>
 					<input id="high" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="10000" />
@@ -61,22 +71,12 @@
 				<!-- Freeze/Unfreeze Output -->
 				<div class="horizontal-range-label">
 					<div class="half-width-div">
-						<input id="freezeAnalogBtn" style="" type="button" value="Freeze Analog" />
+						<input id="freezeAnalogBtn" style="width: 150px;" type="button" value="Freeze Analog" />
 					</div>
 					<div class="half-width-div">
-						<input id="freezeBothBtnAnalog" style="" type="button" value="Freeze Both" />
+						<input id="freezeBothBtnAnalog" style="width: 150px;" type="button" value="Freeze Both" />
 					</div>
 				</div>
-
-				<!-- Vertical Adjustment -->
-				<!-- <input id="channel1Vert" class="vertical-slider" type="range" min="0" max="10000" step="1" value="10000" />
-				<input id="channel2Vert" class="vertical-slider" type="range" min="0" max="10000" step="1" value="10000" />
-				<input id="voltsPerDiv" type="range" min="0" max="10000" step="1" value="10000" /> -->
-
-				<!-- <div class="price-slider">
-					<input id="low" value="0" min="0" max="10000" step="1" type="range" />
-					<input id="high" value="10000" min="0" max="10000" step="1" type="range" />
-				</div> -->
 			</div>
 
 			<!-- Sound Output -->			
@@ -137,13 +137,14 @@
 			<div class="card">
 				<h2 class="card-title">Digital Plot Controls</h2>
 
-				<!-- Horizontal Adjustment -->
+				<!-- X Min Adjustment Slider -->
 				<div class="horizontal-range-label">
 					<label for="lowDigital">Start Sample #</label>
 					<input id="lowDigital" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="0" />
 					<textarea id="lowValDigital" class="range-slider-textarea" rows="1" cols="6"></textarea>
 				</div>
 	
+				<!-- X Max Adjustment Slider -->
 				<div class="horizontal-range-label">
 					<label for="highDigital">End Sample #</label>
 					<input id="highDigital" class="horizontal-slider" type="range" min="0" max="10000" step="1" value="10000" />
@@ -153,10 +154,10 @@
 				<!-- Freeze/Unfreeze Output -->
 				<div class="horizontal-range-label">
 					<div class="half-width-div">
-						<input id="freezeDigitalBtn" style="" type="button" value="Freeze Digital" />
+						<input id="freezeDigitalBtn" style="width: 150px;" type="button" value="Freeze Digital" />
 					</div>
 					<div class="half-width-div">
-						<input id="freezeBothBtnDigital" style="" type="button" value="Freeze Both" />
+						<input id="freezeBothBtnDigital" style="width: 150px;" type="button" value="Freeze Both" />
 					</div>
 				</div>
 			</div>

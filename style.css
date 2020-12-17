@@ -26,6 +26,11 @@ textarea {
 #deviceConnect {
 	position: absolute;
 	width: 8vw;
+
+	/* 
+		Calculated distance from left edge. 
+		Add 10px for margin from edge.
+	*/
 	left: 10px;
 	top: 10px;
 }
@@ -33,7 +38,42 @@ textarea {
 #downloadBtn {
 	position: absolute;
 	width: 8vw;
+
+	/* 
+		Calculated distance from left edge. 
+		Add 10px for margin from edge.
+		Add 8vw for width of deviceConnect button.
+		Add 10px for margin from deviceConnect button.
+	*/
 	left: calc( 10px + 8vw + 10px );
+	top: 10px;
+}
+
+#quickStartBtn {
+	position: absolute;
+	width: 8vw;
+
+	/* 
+		Calculated distance from right edge. 
+		Subtract 8vw for width of button.
+		Subtract 10px for margin from edge.
+	*/
+	left: calc( 100vw - 8vw - 10px );
+	top: 10px;
+}
+
+#documentsBtn {
+	position: absolute;
+	width: 8vw;
+
+	/* 
+		Calculated distance from right edge. 
+		Subtract 8vw for width of button.
+		Subtract 8vw for width of quickStartButton to the right of this button.
+		Subtract 10px for margin from edge.
+		Subtract 10px for margin from quickStartButton.
+	*/
+	left: calc( 100vw - ( 10px + 8vw + 10px + 8vw ) );
 	top: 10px;
 }
 

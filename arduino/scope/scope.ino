@@ -18,10 +18,6 @@ uint16_t output;
 /**** Define channel select variables ****/
 #define NUM_CHANNELS 2					// Constant number of channels to measure from.
 uint8_t currentChannel = 0;				// Keep track of the current selected channel.
-uint8_t channels[] = 	{				// List of channel MUX values:
-							B01100000, 		// A0
-							B01100001		// A1
-						};
 
 
 /**** Define Channel Input Pins ****/
@@ -52,22 +48,6 @@ uint8_t channels[] = 	{				// List of channel MUX values:
 	* 	128			104     us 	  9.615 kHz
 ****/
 #define ADC_PRESCALAR 64
-
-
-/**** Define Timer1 frequency ****/
-/****
-	*	OCR1A Value |	Period		| Frequency
-	*	------------+---------------+-------------
-	*		62500	|	250   ms	|	    4 Hz
-	*		25000	|	100   ms	|	   10 Hz
-	*		12500	|	 50   ms	|	   20 Hz
-	*		 2500	|	 10   ms	|	  100 Hz
-	*		  500	|	500   ms	|	  500 Hz
-	*		  250	|	  1   ms	|	 1000 Hz
-	*		  125	|	  0.5 ms	|	 5000 Hz
-	*		   25	|	  0.1 ms	|	10000 Hz
-****/
-#define TIMER1_OUTPUTCOMPARE_A 250
 
 
 /**** Define UART Baud Rate ****/
@@ -140,14 +120,6 @@ void initPins()
 	DDRC &= ~CMASK;	
 	DDRD &= ~DMASK;
 	DDRB &= ~BMASK;
-
-	PINC = 0x00;
-	PORTC = 0x00;
-	PIND = 0x00;
-	PIND = 0x00;
-	PINB = 0x00;
-	PORTB = 0x00;
-	digitalWrite( A2, HIGH );
 }
 
 
@@ -168,70 +140,32 @@ void loop()
 		// Go to the next channel. If we are at
 		// the last channel, then return to the first.
 		currentChannel ^= 1;
-		// if( ++currentChannel == NUM_CHANNELS )
-		// 	currentChannel = 0;
 
 		// Set the analog pin MUX.
-		// ADMUX = channels[ currentChannel ];
 		ADMUX ^= 1;
-
-
-		// Print out the data in hex format.
-		// Serial.write( toHex[ ( adcHigh >> 4 ) ] );
-		// Serial.write( toHex[ adcHigh & 0x0f ] );
-
-		// Serial.write( 32 );
-		// Serial.print( adcHigh, HEX );
-		// Serial.write( 32 );
-
-		// Serial.write( adcHigh );
-
-
 
 		// If we did not just sample the last channel,
 		// display the space delimiter bewteen data.
 		// Otherwise print newline to show end of data.
 		if( currentChannel == 0 )
 		{
-			// output = ( output & 0xff00 ) | adcHigh;
-
 			Serial.write( toHex[ ( output >> 12 ) & 0x000f ] );
 			Serial.write( toHex[ ( output >>  8 ) & 0x000f ] );
 			Serial.write( toHex[ ( output >>  4 ) & 0x000f ] );
 			Serial.write( toHex[ ( output       ) & 0x000f ] );
 
-			// Serial.write( 32 );
 			logic = 0;
 	        logic |= (PINB & BMASK ) << 6;		//read digital pins 8-13
 	        logic |= (PIND & DMASK ) >> 2;        //read digital pins 2-7 mask and shift then place
 	        logic |= (PINC & CMASK ) << 10;      //read analog2-5 pins as logic input mask and shift then place
-	        
-	        // logic |= (PINB & BMASK );             //read digital pins 8-13
-	        // logic |= (PIND & DMASK ) << 4;        //read digital pins 2-7 mask and shift then place
-	        // logic |= (PINC & CMASK ) << 10;      //read analog2-5 pins as logic input mask and shift then place
-	        
-	        // Serial.write( logic >> 8 );
-	        // Serial.write( logic );
+	
 	        Serial.write( toHex[ ( logic >> 12 ) & 0x000f ] );	// PINC
 	        Serial.write( toHex[ ( logic >>  8 ) & 0x000f ] );	// Top 4 of PIND
 	        Serial.write( toHex[ ( logic >>  4 ) & 0x000f ] );	// Bottom 2 of PIND, Top 2 of PINB
 	        Serial.write( toHex[ ( logic       ) & 0x000f ] );	// Bottom 4 of PINB
-	        // Serial.print( logic >> 8, HEX );
-	        // Serial.print( logic, HEX );
-
-			// Serial.write( 32 );
-			// Serial.print( (PINC & CMASK) >> 2, BIN );
-			// Serial.write( 32 );
-			// Serial.print( (PIND & DMASK) >> 2, BIN );
-			// Serial.write( 32 );
-			// Serial.print( PINB & BMASK, BIN );
 
 			Serial.write( 10 );
 		}
-		// else
-		// {
-		// 	output = adcHigh << 8;
-		// }
 
 		dataReady = 0;
 		sbi( ADCSRA, ADSC );	// Start Conversion.
